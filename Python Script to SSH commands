@@ -1,0 +1,33 @@
+import paramiko
+
+# Server credentials
+hostname = 'your_server_ip_or_hostname'
+username = 'your_username'
+password = 'your_password'  # For better security, consider using SSH keys
+
+# Command to execute
+command = 'cd /path/to/directory; ls *.sh'
+
+# Create SSH client instance
+ssh = paramiko.SSHClient()
+
+# Automatically add host key (for the first connection)
+ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+
+try:
+    # Connect to the server
+    ssh.connect(hostname, username=username, password=password)
+
+    # Execute the command
+    stdin, stdout, stderr = ssh.exec_command(command)
+
+    # Read the output from stdout
+    output = stdout.readlines()
+    print(''.join(output))
+
+except Exception as e:
+    print(f"Connection failed: {e}")
+
+finally:
+    # Close the connection
+    ssh.close()

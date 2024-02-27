@@ -1,0 +1,74 @@
+import paramiko
+import time
+import socket
+import json
+
+def is_server_up(host, port=22):
+    """ Check if the server is up by attempting a socket connection. """
+    try:
+        with socket.create_connection((host, port), timeout=10):
+            return True
+    except OSError:
+        return False
+
+def execute_ssh_commands(ssh_client, commands):
+    """ Execute a list of commands over an SSH connection. """
+    for command in commands:
+        stdin, stdout, stderr = ssh_client.exec_command(command)
+        print(stdout.read().decode())
+        print(stderr.read().decode())
+
+def read_credentials(file_path):
+    """ Read SSH credentials from a JSON file. """
+    with open(file_path, 'r') as file:
+        return json.load(file)
+
+# Path to the JSON file with credentials
+credentials_file_path = '/path/to/credentials.json'
+
+# Read credentials
+credentials = read_credentials(credentials_file_path)
+
+# Server details
+host = 'your.server.ip'
+port = 22  # Default SSH port
+username = credentials['username']
+password = credentials['password']
+
+# Commands to execute
+commands = [
+    'cd your/directory',
+    'ls *.sh',
+    './ABC.sh'
+]
+
+# Initial state
+server_was_down = False
+
+# Main loop
+while True:
+    if is_server_up(host, port):
+        if server_was_down:
+            # Server was down previously and is now back up
+            try:
+                # Establish SSH connection
+                client = paramiko.SSHClient()
+                client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+                client.connect(host, port=port, username=username, password=password)
+
+                # Execute commands
+                execute_ssh_commands(client, commands)
+
+                client.close()
+            except paramiko.SSHException as e:
+                print(f"SSH connection error: {e}")
+
+            break  # Exit the loop after successful execution
+        else:
+            # Server was up previously, continue monitoring
+            server_was_down = False
+    else:
+        print("Server is down. Monitoring for availability...")
+        server_was_down = True  # Update the status to indicate the server is down
+
+    time.sleep(60)  # Wait for 60 seconds before retrying

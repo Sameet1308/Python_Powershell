@@ -1,0 +1,84 @@
+import os
+import paramiko
+import smtplib
+from email.mime.text import MIMEText
+from datetime import datetime, timedelta
+from email.mime.multipart import MIMEMultipart
+
+# Server credentials
+hostname = 'your_server_ip'
+username = 'your_username'
+password = 'your_password'  # Consider using a more secure authentication method
+
+# Paths to R scripts and directories
+r_script_path1 = '/mounted/windows/location1/script1.R'
+r_script_path2 = '/mounted/windows/location3/script2.R'
+data_directory = '/mounted/windows/location2/'
+
+# Email details
+sender_email = "your_email@example.com"
+receiver_emails = ["email1@example.com", "email2@example.com", "email3@example.com", "email4@example.com"]
+subject = "R Scripts Execution Notification"
+body = "All R Scripts have been triggered and executed successfully."
+
+# Function to run R script
+def run_r_script(ssh_client, script_path):
+    stdin, stdout, stderr = ssh_client.exec_command(f'Rscript {script_path}')
+    exit_status = stdout.channel.recv_exit_status()  # Blocking call
+    if exit_status == 0:
+        print(f"Successfully ran {script_path}")
+    else:
+        print(f"Error in running {script_path}", stderr.read())
+        raise Exception(f"Error in running {script_path}")
+
+# Function to check for folder and file count
+def check_folder_and_files():
+    last_month = datetime.now() - timedelta(days=30)
+    folder_name = last_month.strftime("%Y_%m_Data_Date")
+    full_path = os.path.join(data_directory, folder_name)
+
+    if not os.path.exists(full_path):
+        raise Exception(f"Folder {full_path} does not exist")
+
+    files = os.listdir(full_path)
+    if len(files) != 12:
+        raise Exception(f"Expected 12 files in {full_path}, found {len(files)}")
+
+# SSH and run R scripts
+try:
+    ssh = paramiko.SSHClient()
+    ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+    ssh.connect(hostname, username=username, password=password)
+    
+    run_r_script(ssh, r_script_path1)
+    ssh.close()
+    
+    check_folder_and_files()
+
+    ssh.connect(hostname, username=username, password=password)
+    run_r_script(ssh, r_script_path2)
+    ssh.close()
+except Exception as e:
+    print(f"An error occurred: {e}")
+    exit(1)
+
+# Send email
+try:
+    msg = MIMEMultipart()
+    msg['From'] = sender_email
+    msg['To'] = ", ".join(receiver_emails)
+    msg['Subject'] = subject
+
+    msg.attach(MIMEText(body, 'plain'))
+
+    server = smtplib.SMTP('smtp.example.com', 587)  # Replace with your SMTP server details
+    server.starttls()
+    server.login(sender_email, "your_email_password")
+    text = msg.as_string()
+    server.sendmail(sender_email, receiver_emails, text)
+    server.quit()
+except Exception as e:
+    print(f"Failed to send email: {e}")
+    exit(1)
+
+print("Scripts executed and email sent successfully.")

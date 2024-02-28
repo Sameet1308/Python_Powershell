@@ -1,74 +1,62 @@
 import paramiko
-import time
-import socket
 import json
+import socket
+import time
 
-def is_server_up(host, port=22):
-    """ Check if the server is up by attempting a socket connection. """
+def load_credentials(json_path):
     try:
-        with socket.create_connection((host, port), timeout=10):
-            return True
-    except OSError:
+        with open(json_path, 'r') as file:
+            return json.load(file)
+    except Exception as e:
+        print(f"Error loading credentials: {e}")
+        return None
+
+def is_server_up(hostname, port=22):
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    sock.settimeout(10)
+    try:
+        sock.connect((hostname, port))
+        return True
+    except socket.error:
         return False
+    finally:
+        sock.close()
 
-def execute_ssh_commands(ssh_client, commands):
-    """ Execute a list of commands over an SSH connection. """
-    for command in commands:
-        stdin, stdout, stderr = ssh_client.exec_command(command)
-        print(stdout.read().decode())
-        print(stderr.read().decode())
+def execute_ssh_commands(hostname, port, username, password, commands):
+    try:
+        client = paramiko.SSHClient()
+        client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+        client.connect(hostname, port=port, username=username, password=password)
 
-def read_credentials(file_path):
-    """ Read SSH credentials from a JSON file. """
-    with open(file_path, 'r') as file:
-        return json.load(file)
+        for command in commands:
+            stdin, stdout, stderr = client.exec_command(command)
+            print(stdout.read().decode())
+            err = stderr.read().decode()
+            if err:
+                print(f"Error executing command '{command}': {err}")
 
-# Path to the JSON file with credentials
-credentials_file_path = '/path/to/credentials.json'
+        client.close()
+    except Exception as e:
+        print(f"SSH connection error: {e}")
 
-# Read credentials
-credentials = read_credentials(credentials_file_path)
+def main():
+    credentials_path = '/path/to/credentials.json'
+    credentials = load_credentials(credentials_path)
+    if credentials is None:
+        return
 
-# Server details
-host = 'your.server.ip'
-port = 22  # Default SSH port
-username = credentials['username']
-password = credentials['password']
+    hostname = credentials['hostname']
+    username = credentials['username']
+    password = credentials['password']
+    commands = ['cd /your/directory', 'ls', 'sh ABC.sh']
 
-# Commands to execute
-commands = [
-    'cd your/directory',
-    'ls *.sh',
-    './ABC.sh'
-]
-
-# Initial state
-server_was_down = False
-
-# Main loop
-while True:
-    if is_server_up(host, port):
-        if server_was_down:
-            # Server was down previously and is now back up
-            try:
-                # Establish SSH connection
-                client = paramiko.SSHClient()
-                client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-                client.connect(host, port=port, username=username, password=password)
-
-                # Execute commands
-                execute_ssh_commands(client, commands)
-
-                client.close()
-            except paramiko.SSHException as e:
-                print(f"SSH connection error: {e}")
-
-            break  # Exit the loop after successful execution
+    while True:
+        if is_server_up(hostname):
+            execute_ssh_commands(hostname, 22, username, password, commands)
+            break
         else:
-            # Server was up previously, continue monitoring
-            server_was_down = False
-    else:
-        print("Server is down. Monitoring for availability...")
-        server_was_down = True  # Update the status to indicate the server is down
+            print("Server is down. Checking again in 60 seconds.")
+            time.sleep(60)
 
-    time.sleep(60)  # Wait for 60 seconds before retrying
+if __name__ == "__main__":
+    main()

@@ -1,62 +1,91 @@
 import paramiko
-import json
-import socket
+import requests
 import time
+import logging
+import json
 
-def load_credentials(json_path):
-    try:
-        with open(json_path, 'r') as file:
-            return json.load(file)
-    except Exception as e:
-        print(f"Error loading credentials: {e}")
-        return None
+# Logging Configuration
+logging.basicConfig(filename='server_monitor.log', level=logging.INFO,
+                    format='%(asctime)s - %(levelname)s - %(message)s')
 
-def is_server_up(hostname, port=22):
-    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    sock.settimeout(10)
-    try:
-        sock.connect((hostname, port))
-        return True
-    except socket.error:
-        return False
-    finally:
-        sock.close()
+# Load SSH credentials from JSON file
+with open('path/to/credentials.json', 'r') as file:
+    credentials = json.load(file)
+ssh_user = credentials['username']
+ssh_password = credentials['password']
 
-def execute_ssh_commands(hostname, port, username, password, commands):
+# Server and SSH details
+server_ip = 'your.linux.server.ip'
+ssh_port = 22  # default SSH port is 22
+
+# Application URL
+app_url = 'https://server.net:4444'
+
+# Command to execute
+command = 'sh /path/to/your/script.sh'
+
+def is_server_up(ip):
     try:
         client = paramiko.SSHClient()
         client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-        client.connect(hostname, port=port, username=username, password=password)
+        client.connect(ip, username=ssh_user, password=ssh_password, port=ssh_port)
+        client.close()
+        return True
+    except Exception as e:
+        logging.error(f"Error connecting to server: {e}")
+        return False
 
-        for command in commands:
-            stdin, stdout, stderr = client.exec_command(command)
-            print(stdout.read().decode())
-            err = stderr.read().decode()
-            if err:
-                print(f"Error executing command '{command}': {err}")
-
+def execute_ssh_command(ip, cmd):
+    try:
+        client = paramiko.SSHClient()
+        client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+        client.connect(ip, username=ssh_user, password=ssh_password, port=ssh_port)
+        stdin, stdout, stderr = client.exec_command(cmd)
+        logging.info(stdout.read().decode())
+        logging.error(stderr.read().decode())
         client.close()
     except Exception as e:
-        print(f"SSH connection error: {e}")
+        logging.error(f"Error executing SSH command: {e}")
 
-def main():
-    credentials_path = '/path/to/credentials.json'
-    credentials = load_credentials(credentials_path)
-    if credentials is None:
-        return
-
-    hostname = credentials['hostname']
-    username = credentials['username']
-    password = credentials['password']
-    commands = ['cd /your/directory', 'ls', 'sh ABC.sh']
-
-    while True:
-        if is_server_up(hostname):
-            execute_ssh_commands(hostname, 22, username, password, commands)
-            break
+def is_app_running(url):
+    try:
+        response = requests.get(url)
+        if response.status_code == 200:
+            return True
         else:
-            print("Server is down. Checking again in 60 seconds.")
-            time.sleep(60)
+            logging.error(f"App returned status code: {response.status_code}")
+            return False
+    except Exception as e:
+        logging.error(f"Error checking application status: {e}")
+        return False
 
-if __name__ == "__main__":
-    main()
+# Main monitoring loop
+server_was_down = False
+downtime_count = 0
+
+while True:
+    if is_server_up(server_ip):
+        if server_was_down:
+            logging.info("Server is back up. Executing the script.")
+            execute_ssh_command(server_ip, command)
+            server_was_down = False  # Reset for the next downtime
+            downtime_count += 1
+
+            # Check if the application comes up within 5 minutes
+            for _ in range(10):  # 10 checks, 30 seconds apart
+                if is_app_running(app_url):
+                    logging.info("Application is running fine.")
+                    break
+                time.sleep(30)
+            else:
+                logging.error("Application did not come up after 5 minutes.")
+    else:
+        if not server_was_down:
+            logging.info("Server is down. First downtime detected.")
+            server_was_down = True
+        else:
+            logging.info("Server is down. Waiting for it to come back up...")
+
+    time.sleep(60)  # Check every 60 seconds
+
+logging.info(f"Total downtimes handled: {downtime_count}")

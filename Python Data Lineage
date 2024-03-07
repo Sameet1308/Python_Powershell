@@ -1,0 +1,43 @@
+import requests
+import pandas as pd
+
+def get_mstr_auth_token(base_url, username, password):
+    """Authenticate and get the auth token."""
+    auth_url = f"{base_url}/api/auth/login"
+    response = requests.post(auth_url, json={"username": username, "password": password})
+    if response.status_code == 200:
+        return response.headers['X-MSTR-AuthToken']
+    else:
+        raise Exception("Authentication failed")
+
+def get_data_lineage(base_url, auth_token, document_id):
+    """Retrieve data lineage for a given document or dossier."""
+    lineage_url = f"{base_url}/api/documents/{document_id}/lineage"
+    headers = {'X-MSTR-AuthToken': auth_token}
+    response = requests.get(lineage_url, headers=headers)
+    if response.status_code == 200:
+        return response.json()
+    else:
+        raise Exception("Failed to retrieve data lineage")
+
+def export_to_excel(data, file_name):
+    """Export data to an Excel file."""
+    df = pd.DataFrame(data)
+    df.to_excel(file_name, index=False)
+
+def main():
+    base_url = 'http://your-mstr-server-url'
+    username = 'your_username'
+    password = 'your_password'
+    document_id = input("Enter Document or Dossier ID: ")
+
+    try:
+        auth_token = get_mstr_auth_token(base_url, username, password)
+        data_lineage = get_data_lineage(base_url, auth_token, document_id)
+        export_to_excel(data_lineage, f"data_lineage_{document_id}.xlsx")
+        print("Data lineage exported successfully.")
+    except Exception as e:
+        print(f"Error: {e}")
+
+if __name__ == "__main__":
+    main()

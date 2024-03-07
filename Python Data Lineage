@@ -1,43 +1,61 @@
 import requests
 import pandas as pd
+import urllib3
+from urllib3.exceptions import InsecureRequestWarning
 
-def get_mstr_auth_token(base_url, username, password):
-    """Authenticate and get the auth token."""
-    auth_url = f"{base_url}/api/auth/login"
-    response = requests.post(auth_url, json={"username": username, "password": password})
-    if response.status_code == 200:
-        return response.headers['X-MSTR-AuthToken']
-    else:
-        raise Exception("Authentication failed")
+# Disable SSL warnings
+urllib3.disable_warnings(InsecureRequestWarning)
 
-def get_data_lineage(base_url, auth_token, document_id):
-    """Retrieve data lineage for a given document or dossier."""
-    lineage_url = f"{base_url}/api/documents/{document_id}/lineage"
-    headers = {'X-MSTR-AuthToken': auth_token}
-    response = requests.get(lineage_url, headers=headers)
-    if response.status_code == 200:
+def authenticate_mstr(base_url, username, password):
+    """
+    Authenticate to MicroStrategy and return the session token.
+    """
+    auth_url = f"{base_url}/auth/login"
+    try:
+        response = requests.post(auth_url, json={"username": username, "password": password}, verify=False)
+        response.raise_for_status()
+        return response.headers.get('X-MSTR-AuthToken')
+    except requests.exceptions.HTTPError as http_err:
+        raise SystemExit(f"HTTP error occurred: {http_err}")
+    except Exception as err:
+        raise SystemExit(f"An error occurred: {err}")
+
+def get_data_lineage(base_url, token, object_id):
+    """
+    Get data lineage for a specific document or dossier.
+    """
+    lineage_url = f"{base_url}/documents/{object_id}/lineage"
+    headers = {'X-MSTR-AuthToken': token, 'Accept': 'application/json'}
+    try:
+        response = requests.get(lineage_url, headers=headers, verify=False)
+        response.raise_for_status()
         return response.json()
-    else:
-        raise Exception("Failed to retrieve data lineage")
+    except requests.exceptions.HTTPError as http_err:
+        raise SystemExit(f"HTTP error occurred: {http_err}")
+    except Exception as err:
+        raise SystemExit(f"An error occurred: {err}")
 
 def export_to_excel(data, file_name):
-    """Export data to an Excel file."""
-    df = pd.DataFrame(data)
-    df.to_excel(file_name, index=False)
-
-def main():
-    base_url = 'http://your-mstr-server-url'
-    username = 'your_username'
-    password = 'your_password'
-    document_id = input("Enter Document or Dossier ID: ")
-
+    """
+    Export data to an Excel file.
+    """
     try:
-        auth_token = get_mstr_auth_token(base_url, username, password)
-        data_lineage = get_data_lineage(base_url, auth_token, document_id)
-        export_to_excel(data_lineage, f"data_lineage_{document_id}.xlsx")
-        print("Data lineage exported successfully.")
-    except Exception as e:
-        print(f"Error: {e}")
+        df = pd.DataFrame(data)
+        df.to_excel(file_name, index=False)
+        print(f"Data lineage exported successfully to {file_name}")
+    except Exception as err:
+        raise SystemExit(f"Error in exporting to Excel: {err}")
 
-if __name__ == "__main__":
-    main()
+# Main execution
+mstr_base_url = "https://your-microstrategy-server/MicroStrategyLibrary/api"
+mstr_username = "your_username"
+mstr_password = "your_password"
+document_or_dossier_id = "your_document_or_dossier_id"
+
+try:
+    token = authenticate_mstr(mstr_base_url, mstr_username, mstr_password)
+    data_lineage = get_data_lineage(mstr_base_url, token, document_or_dossier_id)
+    export_filename = f"data_lineage_{document_or_dossier_id}.xlsx"
+    export_to_excel(data_lineage, export_filename)
+except Exception as e:
+    print("Error:", e)

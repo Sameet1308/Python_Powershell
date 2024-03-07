@@ -46,6 +46,19 @@ def export_to_excel(data, file_name):
     except Exception as err:
         raise SystemExit(f"Error in exporting to Excel: {err}")
 
+def close_session(base_url, token):
+    """
+    Close the MicroStrategy session.
+    """
+    logout_url = f"{base_url}/auth/logout"
+    headers = {'X-MSTR-AuthToken': token}
+    try:
+        response = requests.post(logout_url, headers=headers, verify=False)
+        response.raise_for_status()
+        print("Session closed successfully.")
+    except Exception as err:
+        print(f"Error closing session: {err}")
+
 # Main execution
 mstr_base_url = "https://your-microstrategy-server/MicroStrategyLibrary/api"
 mstr_username = "your_username"
@@ -59,3 +72,6 @@ try:
     export_to_excel(data_lineage, export_filename)
 except Exception as e:
     print("Error:", e)
+finally:
+    if 'token' in locals():
+        close_session(mstr_base_url, token)

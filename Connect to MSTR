@@ -1,0 +1,32 @@
+import requests
+
+def authenticate_mstr(base_url, username, password, login_mode='Standard'):
+    """
+    Authenticate to MicroStrategy and return the session token.
+    """
+    auth_url = f"{base_url}/auth/login"
+    headers = {'Content-Type': 'application/json'}
+    payload = {"username": username, "password": password, "loginMode": login_mode}
+
+    response = requests.post(auth_url, headers=headers, json=payload)
+
+    if response.status_code == 200:
+        # Authentication successful, return session token
+        return response.headers['X-MSTR-AuthToken']
+    else:
+        # Authentication failed
+        raise Exception(f"Failed to authenticate. Status Code: {response.status_code}, Response: {response.text}")
+
+# Replace these variables with your MicroStrategy details
+mstr_base_url = "https://your-microstrategy-server/MicroStrategyLibrary/api"  # Change this to your MicroStrategy server URL
+mstr_username = "your_username"
+mstr_password = "your_password"
+mstr_login_mode = "Standard"  # Change to your preferred login mode if different
+
+try:
+    token = authenticate_mstr(mstr_base_url, mstr_username, mstr_password, mstr_login_mode)
+    print("Authentication successful. Token:", token)
+    # You can now use this token to make further API calls
+
+except Exception as e:
+    print("Error:", e)

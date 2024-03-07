@@ -3,7 +3,7 @@ import pandas as pd
 import urllib3
 from urllib3.exceptions import InsecureRequestWarning
 
-# Disable SSL warnings
+# Disable SSL warnings (only for development)
 urllib3.disable_warnings(InsecureRequestWarning)
 
 def authenticate_mstr(base_url, username, password):
@@ -16,9 +16,9 @@ def authenticate_mstr(base_url, username, password):
         response.raise_for_status()
         return response.headers.get('X-MSTR-AuthToken')
     except requests.exceptions.HTTPError as http_err:
-        raise SystemExit(f"HTTP error occurred: {http_err}")
+        raise SystemExit(f"HTTP error occurred: {http_err}") from None
     except Exception as err:
-        raise SystemExit(f"An error occurred: {err}")
+        raise SystemExit(f"An error occurred: {err}") from None
 
 def get_data_lineage(base_url, token, object_id):
     """
@@ -31,9 +31,9 @@ def get_data_lineage(base_url, token, object_id):
         response.raise_for_status()
         return response.json()
     except requests.exceptions.HTTPError as http_err:
-        raise SystemExit(f"HTTP error occurred: {http_err}")
+        raise SystemExit(f"HTTP error occurred: {http_err}") from None
     except Exception as err:
-        raise SystemExit(f"An error occurred: {err}")
+        raise SystemExit(f"An error occurred: {err}") from None
 
 def export_to_excel(data, file_name):
     """
@@ -44,7 +44,7 @@ def export_to_excel(data, file_name):
         df.to_excel(file_name, index=False)
         print(f"Data lineage exported successfully to {file_name}")
     except Exception as err:
-        raise SystemExit(f"Error in exporting to Excel: {err}")
+        raise SystemExit(f"Error in exporting to Excel: {err}") from None
 
 def close_session(base_url, token):
     """

@@ -4,34 +4,37 @@
     <link href="https://fonts.googleapis.com/css?family=Open+Sans&display=swap" rel="stylesheet">
     <style>
         .button-container {
-            display: flex;
-            justify-content: space-between;
-        }
-
-        .transparent-button {
-            background-color: transparent;
-            border: none;
-            color: darkgrey;
             font-family: 'Open Sans', sans-serif;
             font-size: 14px;
-            cursor: pointer;
-            transition: all 0.3s ease;
+            display: flex;
         }
 
-        .transparent-button:hover {
-            background-color: #f0f0f0; /* Light grey background on hover */
-            color: #000000; /* Optional: change font color on hover */
+        a {
+            text-decoration: none;
+            color: darkgrey;
+            background-color: transparent;
+            padding: 10px 15px;
+            border-right: 1px solid #000000;
+        }
+
+        a:last-child {
+            border-right: none;
+        }
+
+        a:hover {
+            background-color: #333333;
+            color: white;
         }
     </style>
 </head>
 <body>
     <div class="button-container">
-        <a href="your-link-1"><button class="transparent-button">Button 1</button></a>
-        <a href="your-link-2"><button class="transparent-button">Button 2</button></a>
-        <a href="your-link-3"><button class="transparent-button">Button 3</button></a>
-        <a href="your-link-4"><button class="transparent-button">Button 4</button></a>
-        <a href="your-link-5"><button class="transparent-button">Button 5</button></a>
-        <a href="your-link-6"><button class="transparent-button">Button 6</button></a>
+        <a href="your-link-1">Button 1</a>
+        <a href="your-link-2">Button 2</a>
+        <a href="your-link-3">Button 3</a>
+        <a href="your-link-4">Button 4</a>
+        <a href="your-link-5">Button 5</a>
+        <a href="your-link-6">Button 6</a>
     </div>
 </body>
 </html>

@@ -1,0 +1,12 @@
+Comparison of Excel Data Import Methods in MSTR
+Criteria	Option 1: Direct Import to MSTR Cube using mstrio-py	Option 2: Import into Database as Key-Value Pairs then to MSTR
+Simplicity and Speed	More straightforward and faster for smaller datasets.	More steps involved, especially with the universal query.
+Complexity of Setup	Less complex as there's no need to manage a separate database.	More complex due to database design, data import processes, and maintenance.
+Data Transformation and Validation	Limited options for cleaning and transforming data.	Allows for data validation, cleansing, and transformation.
+Data Management and Integrity	Higher risk of incorrect or incomplete data import.	Better data management with database constraints and validations.
+Scalability	Not suitable for very large datasets.	More suitable for larger datasets and complex transformations.
+Performance Impact on MSTR	Direct import can affect MSTR's performance, especially with large/complex files.	Depends on database performance but generally less direct impact on MSTR.
+Real-time Data Reflection	Ideal for frequently updated Excel files.	Some delay depending on the frequency of data refreshes.
+Flexibility in Data Consumption	Limited, as data is directly imported without much transformation.	More options for querying and manipulating data.
+Data Update Latency	Data can be reflected more immediately.	Potential delay in reflecting the latest data in MSTR.
+

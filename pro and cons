@@ -9,4 +9,7 @@ Performance Impact on MSTR	Direct import can affect MSTR's performance, especial
 Real-time Data Reflection	Ideal for frequently updated Excel files.	Some delay depending on the frequency of data refreshes.
 Flexibility in Data Consumption	Limited, as data is directly imported without much transformation.	More options for querying and manipulating data.
 Data Update Latency	Data can be reflected more immediately.	Potential delay in reflecting the latest data in MSTR.
+Security Concerns	Potential risk as direct import might not have robust security measures.	Database can implement stronger security measures.
+Data Integrity	Relies heavily on the correctness of the Excel file; less control over data integrity.	Enhanced through database validations and the structured nature of the key-value pair setup.
+Impact on MicroStrategy Environment and Server	Might strain the server, impacting performance and stability.	Less impact on MSTR server, requires efficient database management for smooth integration.
 

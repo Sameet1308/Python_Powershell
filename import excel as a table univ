@@ -1,0 +1,46 @@
+import pandas as pd
+import pyodbc
+from pathlib import Path
+
+# Database connection parameters
+server = 'your_server_name'
+database = 'your_database_name'
+username = 'your_username'
+password = 'your_password'
+cnxn = pyodbc.connect('DRIVER={ODBC Driver 17 for SQL Server};SERVER=' + server + ';DATABASE=' + database + ';UID=' + username + ';PWD=' + password)
+cursor = cnxn.cursor()
+
+# Path to your Excel file
+excel_file_path = 'path_to_your_excel_file.xlsx'
+
+# Check if the file name already exists in UniversalTable
+filename = Path(excel_file_path).name
+cursor.execute("SELECT COUNT(*) FROM UniversalTable WHERE Filename = ?", (filename,))
+existing_file_count = cursor.fetchone()[0]
+
+# If the file name already exists, delete records with the same file name
+if existing_file_count > 0:
+    cursor.execute("DELETE FROM UniversalTable WHERE Filename = ?", (filename,))
+    print(f"Records with file name '{filename}' deleted from UniversalTable.")
+
+# Load the Excel data
+excel_data = pd.read_excel(excel_file_path)
+
+# Transform the data for bulk insert
+data_to_insert = []
+row_identifier = 1
+for index, row in excel_data.iterrows():
+    for column_name, value in row.items():
+        data_to_insert.append((filename, column_name, value, row_identifier))
+    row_identifier += 1
+
+# Insert data into UniversalTable
+insert_sql = "INSERT INTO UniversalTable (Filename, Fieldname, Value, RowIdentifier) VALUES (?, ?, ?, ?)"
+cursor.executemany(insert_sql, data_to_insert)
+
+# Commit changes and close the database connection
+cnxn.commit()
+cursor.close()
+cnxn.close()
+
+print(f"Data from {excel_file_path} loaded into UniversalTable in {database} database.")

@@ -1,77 +1,31 @@
-import requests
-import pandas as pd
-import urllib3
-from urllib3.exceptions import InsecureRequestWarning
+from mstrio.connection import Connection
+from mstrio.distribution_services import Document
+import json
 
-# Disable SSL warnings (only for development)
-urllib3.disable_warnings(InsecureRequestWarning)
+# MicroStrategy connection details
+base_url = 'http://your-microstrategy-server.com/MicroStrategyLibrary/api'
+username = 'your_username'
+password = 'your_password'
+project_name = 'your_project_name'
 
-def authenticate_mstr(base_url, username, password):
-    """
-    Authenticate to MicroStrategy and return the session token.
-    """
-    auth_url = f"{base_url}/auth/login"
-    try:
-        response = requests.post(auth_url, json={"username": username, "password": password}, verify=False)
-        response.raise_for_status()
-        return response.headers.get('X-MSTR-AuthToken')
-    except requests.exceptions.HTTPError as http_err:
-        raise SystemExit(f"HTTP error occurred: {http_err}") from None
-    except Exception as err:
-        raise SystemExit(f"An error occurred: {err}") from None
+# Dashboard ID
+dashboard_id = 'your_dashboard_id'
 
-def get_data_lineage(base_url, token, object_id):
-    """
-    Get data lineage for a specific document or dossier.
-    """
-    lineage_url = f"{base_url}/documents/{object_id}/lineage"
-    headers = {'X-MSTR-AuthToken': token, 'Accept': 'application/json'}
-    try:
-        response = requests.get(lineage_url, headers=headers, verify=False)
-        response.raise_for_status()
-        return response.json()
-    except requests.exceptions.HTTPError as http_err:
-        raise SystemExit(f"HTTP error occurred: {http_err}") from None
-    except Exception as err:
-        raise SystemExit(f"An error occurred: {err}") from None
+# Establish connection to MicroStrategy
+conn = Connection(base_url, username, password, project_name=project_name, login_mode=1)
+conn.connect()
 
-def export_to_excel(data, file_name):
-    """
-    Export data to an Excel file.
-    """
-    try:
-        df = pd.DataFrame(data)
-        df.to_excel(file_name, index=False)
-        print(f"Data lineage exported successfully to {file_name}")
-    except Exception as err:
-        raise SystemExit(f"Error in exporting to Excel: {err}") from None
+# Function to get dashboard details
+def get_dashboard_details(dashboard_id):
+    dashboard = Document(connection=conn, id=dashboard_id)
+    dashboard_info = dashboard.to_dict()
+    return dashboard_info
 
-def close_session(base_url, token):
-    """
-    Close the MicroStrategy session.
-    """
-    logout_url = f"{base_url}/auth/logout"
-    headers = {'X-MSTR-AuthToken': token}
-    try:
-        response = requests.post(logout_url, headers=headers, verify=False)
-        response.raise_for_status()
-        print("Session closed successfully.")
-    except Exception as err:
-        print(f"Error closing session: {err}")
-
-# Main execution
-mstr_base_url = "https://your-microstrategy-server/MicroStrategyLibrary/api"
-mstr_username = "your_username"
-mstr_password = "your_password"
-document_or_dossier_id = "your_document_or_dossier_id"
-
+# Fetch and print dashboard details
 try:
-    token = authenticate_mstr(mstr_base_url, mstr_username, mstr_password)
-    data_lineage = get_data_lineage(mstr_base_url, token, document_or_dossier_id)
-    export_filename = f"data_lineage_{document_or_dossier_id}.xlsx"
-    export_to_excel(data_lineage, export_filename)
+    dashboard_details = get_dashboard_details(dashboard_id)
+    print(json.dumps(dashboard_details, indent=4))
 except Exception as e:
-    print("Error:", e)
+    print(f"Error: {e}")
 finally:
-    if 'token' in locals():
-        close_session(mstr_base_url, token)
+    conn.close()

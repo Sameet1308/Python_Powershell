@@ -1,32 +1,71 @@
 import requests
 
-def authenticate_mstr(base_url, username, password, login_mode='Standard'):
-    """
-    Authenticate to MicroStrategy and return the session token.
-    """
-    auth_url = f"{base_url}/auth/login"
-    headers = {'Content-Type': 'application/json'}
-    payload = {"username": username, "password": password, "loginMode": login_mode}
-
-    response = requests.post(auth_url, headers=headers, json=payload)
-
-    if response.status_code == 200:
-        # Authentication successful, return session token
+def create_session(base_url, username, password, login_mode=1):
+    """Create a session in MicroStrategy."""
+    url = f"{base_url}/api/auth/login"
+    payload = {
+        "username": username,
+        "password": password,
+        "loginMode": login_mode
+    }
+    headers = {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+    }
+    response = requests.post(url, json=payload, headers=headers)
+    if response.ok:
         return response.headers['X-MSTR-AuthToken']
     else:
-        # Authentication failed
-        raise Exception(f"Failed to authenticate. Status Code: {response.status_code}, Response: {response.text}")
+        raise Exception(f"Failed to create session: {response.text}")
 
-# Replace these variables with your MicroStrategy details
-mstr_base_url = "https://your-microstrategy-server/MicroStrategyLibrary/api"  # Change this to your MicroStrategy server URL
-mstr_username = "your_username"
-mstr_password = "your_password"
-mstr_login_mode = "Standard"  # Change to your preferred login mode if different
+def get_project_id(base_url, auth_token, project_name):
+    """Get the project ID by project name."""
+    url = f"{base_url}/api/projects"
+    headers = {
+        'X-MSTR-AuthToken': auth_token,
+        'Accept': 'application/json'
+    }
+    response = requests.get(url, headers=headers)
+    if response.ok:
+        projects = response.json()
+        for project in projects:
+            if project['name'] == project_name:
+                return project['id']
+        return None
+    else:
+        raise Exception(f"Failed to get projects: {response.text}")
+
+def end_session(base_url, auth_token):
+    """End the session in MicroStrategy."""
+    url = f"{base_url}/api/auth/logout"
+    headers = {
+        'X-MSTR-AuthToken': auth_token,
+        'Accept': 'application/json'
+    }
+    response = requests.post(url, headers=headers)
+    if not response.ok:
+        raise Exception(f"Failed to end session: {response.text}")
+
+# Example usage
+base_url = "https://your-microstrategy-server"
+username = "your-username"
+password = "your-password"
+project_name = "your-project-name"
 
 try:
-    token = authenticate_mstr(mstr_base_url, mstr_username, mstr_password, mstr_login_mode)
-    print("Authentication successful. Token:", token)
-    # You can now use this token to make further API calls
+    # Create session
+    auth_token = create_session(base_url, username, password)
+    print("Session created.")
 
+    # Get project ID
+    project_id = get_project_id(base_url, auth_token, project_name)
+    if project_id:
+        print(f"Project ID for '{project_name}': {project_id}")
+    else:
+        print(f"Project '{project_name}' not found.")
+
+    # End session
+    end_session(base_url, auth_token)
+    print("Session ended.")
 except Exception as e:
-    print("Error:", e)
+    print(str(e))

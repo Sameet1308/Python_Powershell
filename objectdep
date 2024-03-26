@@ -1,0 +1,74 @@
+import requests
+import pandas as pd
+
+# Constants
+BASE_URL = 'https://your-microstrategy-server/MicroStrategyLibrary/api'
+USERNAME = 'your_username'
+PASSWORD = 'your_password'
+PROJECT_ID = 'your_project_id'
+OBJECT_ID = 'your_object_id'
+
+# Endpoints
+AUTH_LOGIN_ENDPOINT = '/auth/login'
+AUTH_LOGOUT_ENDPOINT = '/auth/logout'
+OBJECT_DEPENDENTS_ENDPOINT = f'/objects/{OBJECT_ID}/dependents'
+
+# Disable warnings for SSL Certificate for demo purposes only (not recommended for production)
+requests.packages.urllib3.disable_warnings()
+
+def login(base_url, username, password):
+    data = {
+        'username': username,
+        'password': password,
+        'loginMode': 1
+    }
+    response = requests.post(f"{base_url}{AUTH_LOGIN_ENDPOINT}", json=data, verify=False)
+    if response.ok:
+        authToken = response.headers.get('X-MSTR-AuthToken')
+        cookies = dict(response.cookies)
+        return authToken, cookies
+    else:
+        print(f"Login failed: {response.text}")
+        return None, None
+
+def logout(base_url, auth_token, cookies):
+    headers = {
+        'X-MSTR-AuthToken': auth_token,
+        'Accept': 'application/json'
+    }
+    response = requests.post(f"{base_url}{AUTH_LOGOUT_ENDPOINT}", headers=headers, cookies=cookies, verify=False)
+    if response.ok:
+        print("Logout successful.")
+    else:
+        print(f"Logout failed: {response.text}")
+
+def get_object_dependents(base_url, project_id, object_id, auth_token, cookies):
+    headers = {
+        'X-MSTR-AuthToken': auth_token,
+        'X-MSTR-ProjectID': project_id,
+        'Accept': 'application/json'
+    }
+    response = requests.get(f"{base_url}{OBJECT_DEPENDENTS_ENDPOINT}", headers=headers, cookies=cookies, verify=False)
+    if response.ok:
+        return response.json()
+    else:
+        print(f"Error retrieving object dependents: {response.text}")
+        return None
+
+def export_to_excel(data, file_name):
+    df = pd.DataFrame(data)
+    df.to_excel(file_name, index=False)
+    print(f"Data exported to {file_name}")
+
+# Start of the script
+auth_token, cookies = login(BASE_URL, USERNAME, PASSWORD)
+if auth_token and cookies:
+    try:
+        # Get object dependents
+        dependents = get_object_dependents(BASE_URL, PROJECT_ID, OBJECT_ID, auth_token, cookies)
+        if dependents:
+            # Export to Excel
+            export_to_excel(dependents, 'object_dependents.xlsx')
+    finally:
+        # Logout
+        logout(BASE_URL, auth_token, cookies)

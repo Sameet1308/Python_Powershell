@@ -1,0 +1,8 @@
+MicroStrategy Workstation now supports Python scripting, allowing users to enhance their analytics with Python's robust capabilities. Key features include:
+
+Built-in Python Interpreter: Execute Python scripts directly within the MicroStrategy environment.
+Script Management: Easily upload, edit, and run Python scripts.
+Advanced Script Editor: An intuitive editor with features like auto-complete.
+Access Control: Certain privileges are required to access and certify scripts, ensuring security and compliance.
+Enhanced Functionality: Continuous updates offer improved script management and usage.
+This integration opens up new possibilities for advanced data analysis and automation within MicroStrategy.

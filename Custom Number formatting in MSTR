@@ -1,0 +1,16 @@
+
+Certainly! Let’s create custom number formats for your data in MicroStrategy, both with and without the abbreviations for billions (B), millions (M), and thousands (K). Additionally, we’ll explore variations with different decimal places.
+
+Without Abbreviations (B, M, K):
+For metrics without a dollar sign and positive values (e.g., 1,100,000), you can use the following custom format:
+[>=1000000000] #.#,,; [>=1000000] #.#,; [>=1000] #.#; 0
+This format will display numbers as 1.1, 1.2, etc., without any abbreviations1.
+With One Decimal Place:
+To display numbers with one decimal place (e.g., 1.1B, 1.2M), use this custom format:
+[>=1000000000] #.#,,\"B\"; [>=1000000] #.#,\"M\"; [>=1000] #.#,\"K\"; 0
+This format will show values like 1.1B, 1.2M, etc.1.
+With Two Decimal Places:
+If you prefer two decimal places (e.g., 1.10B, 1.20M), use this custom format:
+[>=1000000000] #.##,,\"B\"; [>=1000000] #.##,\"M\"; [>=1000] #.##,\"K\"; 0
+Now your numbers will appear as 1.10B, 1.20M, etc.2.
+Remember to apply these formats to your specific metrics or cells in MicroStrategy to achieve the desired display. Feel free to adjust them further based on your needs!

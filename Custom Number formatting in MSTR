@@ -1,16 +1,41 @@
 
-Certainly! Let’s create custom number formats for your data in MicroStrategy, both with and without the abbreviations for billions (B), millions (M), and thousands (K). Additionally, we’ll explore variations with different decimal places.
+Certainly! Here’s the context and instructions you can include in your Confluence page to guide users on custom number formatting in MicroStrategy:
 
+Custom Number Formatting in MicroStrategy
+Introduction
+In MicroStrategy, you can customize the formatting of numbers to make them more readable and meaningful for your audience. Whether you’re dealing with financial metrics, quantities, or other numerical data, applying custom formats ensures consistency and clarity.
+
+Common Custom Formats
+Below are some common custom number formats you can use in MicroStrategy:
+
+Decimal Places:
+To display a number with two decimal places, use the format #.##. For example, if you have the value 123.456, it will be displayed as 123.46.
+For one decimal place, use the format #.0#. So, 123.456 becomes 123.5.
+Thousands Separator and Currency Symbol:
+To format a number with a thousands separator and a custom currency symbol (e.g., “CR” for credits), use #,##0"CR";#,##0" ". For example, 1234.567 will be displayed as 1,235CR.
+Negative Numbers:
+Format negative numbers differently (e.g., with a “DR” suffix) using #. -#.##. So, -123.45 becomes 123DR.
+Percentage Format:
+Display a number as a percentage using #.##%. For instance, 0.08 will be shown as 8%.
+Date and Time Formats:
+Use placeholders like m-d-yy, mm dd, yy, mmm d, yy, and mmmm d, yy for date formatting.
+For time, use hh"h" mm"m" and AM/PM.
+Custom Text:
+Include custom text in your format. For example:
+"Sales="0.0: Displays as Sales=123.5.
+"X="0.0;"x="-0.0: Shows x=12.3 (positive) and x=-12.34 (negative).
+Abbreviations for Large Numbers
 Without Abbreviations (B, M, K):
-For metrics without a dollar sign and positive values (e.g., 1,100,000), you can use the following custom format:
-[>=1000000000] #.#,,; [>=1000000] #.#,; [>=1000] #.#; 0
-This format will display numbers as 1.1, 1.2, etc., without any abbreviations1.
+Format for large numbers without abbreviations: [>=1000000000] #.#,,; [>=1000000] #.#,; [>=1000] #.#; 0.
 With One Decimal Place:
-To display numbers with one decimal place (e.g., 1.1B, 1.2M), use this custom format:
-[>=1000000000] #.#,,\"B\"; [>=1000000] #.#,\"M\"; [>=1000] #.#,\"K\"; 0
-This format will show values like 1.1B, 1.2M, etc.1.
+Format with one decimal place and abbreviations: [>=1000000000] #.#,,\"B\"; [>=1000000] #.#,\"M\"; [>=1000] #.#,\"K\"; 0.
 With Two Decimal Places:
-If you prefer two decimal places (e.g., 1.10B, 1.20M), use this custom format:
-[>=1000000000] #.##,,\"B\"; [>=1000000] #.##,\"M\"; [>=1000] #.##,\"K\"; 0
-Now your numbers will appear as 1.10B, 1.20M, etc.2.
-Remember to apply these formats to your specific metrics or cells in MicroStrategy to achieve the desired display. Feel free to adjust them further based on your needs!
+Format with two decimal places and abbreviations: [>=1000000000] #.##,,\"B\"; [>=1000000] #.##,\"M\"; [>=1000] #.##,\"K\"; 0.
+Usage Instructions
+Open your MicroStrategy report or document.
+Select the cells or columns containing the data.
+Press Ctrl + 1 (or right-click and choose “Format Cells”) to open the Format Cells dialog.
+Choose Custom from the Number tab.
+Enter the desired custom format.
+Click Apply and then OK.
+Now your data will be presented in a user-friendly format. Feel free to adjust the formats based on your specific needs.

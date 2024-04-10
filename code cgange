@@ -1,22 +1,14 @@
-if sql_view:
-    matches = re.findall(pattern, sql_view, flags=re.DOTALL | re.IGNORECASE)
-    for match in matches:
-        match=" ".join(match.split())
-        parser = Parser(match)
-        
-        # Here, we'll add a try-except block to handle errors that may come from parser.tables or parser.columns
-        try:
-            for table in parser.tables:
-                if not table.startswith(("ZZ","*")):
-                    #print(f"\"{cube_id}\",\"{cube_name}\",\"{table}\"")
-                    tables_list.append([PROJECT_NAME,cube_id,cube_name,cube_supbtype,table])
-        except IndexError as e:
-            print(f"An error occurred while parsing tables for cube {cube_name} {cube_id}: {e}")
+import re
 
-        try:
-            for column in parser.columns:
-                if not column.startswith(("ZZ","*")):
-                    #print(f"\"{cube_id}\",\"{cube_name}\",\"{column}\"")
-                    columns_list.append([PROJECT_NAME,cube_id,cube_name,cube_supbtype,column])
-        except IndexError as e:
-            print(f"An error occurred while parsing columns for cube {cube_name} {cube_id}: {e}")
+sql_query = "SELECT col1, col2 FROM table1 INNER JOIN table2 ON table1.id = table2.id"
+
+# Regex to extract table names
+tables = re.findall(r'FROM\s+(\S+)|JOIN\s+(\S+)', sql_query, re.IGNORECASE)
+tables = [item for sublist in tables for item in sublist if item]  # Flatten and remove empty strings
+
+# Regex to extract column names might be significantly more complex due to the variety of SQL syntax
+columns = re.findall(r'SELECT\s+(.*?)\s+FROM', sql_query, re.IGNORECASE)
+columns = columns[0].split(", ") if columns else []
+
+print("Tables:", tables)
+print("Columns:", columns)

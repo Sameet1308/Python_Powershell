@@ -1,54 +1,47 @@
-import requests
 import pandas as pd
-from datetime import datetime
+from mstrio.connection import Connection
+from mstrio.cube import Cube, list_cubes
 
-# ... [rest of the parameters] ...
+# Replace these variables with your actual credentials
+base_url = 'YOUR_BASE_URL'  # e.g., 'https://your-microstrategy-server.com/MicroStrategyLibrary/api'
+username = 'YOUR_USERNAME'
+password = 'YOUR_PASSWORD'
+project_name = 'YOUR_PROJECT_NAME'
 
-#### FUNCTIONS ###
-def login(base_url, api_login, api_password, login_mode):
-    print("Getting token...")
-    data_get = {'username': api_login, 'password': api_password, 'loginMode': login_mode}
-    r = requests.post(base_url + 'auth/login', data=data_get)
-    if r.ok:
-        authToken = r.headers.get('X-MSTR-AuthToken')
-        cookies = r.cookies.get_dict()
-        print("Token: " + authToken)
-        return authToken, cookies
-    else:
-        print("HTTP %i - %s, Message %s" % (r.status_code, r.reason, r.text))
-        return None, None  # Return None to signal that login failed
+# Establish a connection to the MicroStrategy server
+conn = Connection(base_url, username, password, project_name)
 
-def quickSearch(base_url, auth_token, cookies, project_id, root_folder, object_type, get_ancestors, limit_search):
-    headers = set_headers(auth_token, project_id)
-    search_url = (base_url  + "searches/results?" + "root=" + root_folder + "&type=" + str(object_type)
-                  + "&getAncestors=" + get_ancestors + "&limit=" + str(limit_search))
-    print("Quick Search...")
-    r = requests.get(search_url, headers=headers, cookies=cookies)
-    if r.ok:
-        print("Total Items: " + str(r.json().get('totalItems', 'Unknown')))
-        return r.json()
-    else:
-        print("HTTP %i - %s, Message %s" % (r.status_code, r.reason, r.text))
-        return None  # Return None to signal that the search failed
+try:
+    # Connect to the project
+    conn.connect()
 
-def main():
-    authToken, cookies = login(base_url, api_login, api_password, login_mode)
-    if authToken is None:
-        print("Login failed. Exiting program.")
-        return
+    # Fetch all cubes
+    cubes = list_cubes(connection=conn, project_id=conn.project_id)
 
-    #### Quick Search
-    search_result = quickSearch(base_url, authToken, cookies, project_id, root_folder, object_type, get_ancestors, limit_search)
-    if search_result is None:
-        print("Quick search failed. Exiting program.")
-        return
+    freeform_sql_cubes = []
+    # Check each cube to see if it's a freeform SQL cube
+    for cube_info in cubes:
+        cube = Cube(connection=conn, cube_id=cube_info['id'])
+        cube.fetch()
 
-    list_search = search_result.get('result')  # Ensure 'result' key exists
-    if not list_search:  # Check if 'result' is empty or not present
-        print("No results found or an error occurred while retrieving the search results.")
-        return
+        # Example condition: checking if the cube's definition contains SQL
+        # Adjust this based on your organization's specifics
+        if 'sql' in cube.definition.lower():
+            freeform_sql_cubes.append({
+                'Cube ID': cube_info['id'],
+                'Cube Name': cube_info['name'],
+                'Definition': cube.definition
+            })
 
-    # ... [rest of the code] ...
+    # Counting the freeform SQL cubes
+    print("Total number of Freeform SQL Cubes:", len(freeform_sql_cubes))
 
-### Main program    
-main()
+    # Exporting to Excel
+    df = pd.DataFrame(freeform_sql_cubes)
+    df.to_excel('freeform_sql_cubes.xlsx', index=False)
+
+    print("Data exported to Excel successfully.")
+
+finally:
+    # Disconnect the session
+    conn.close()

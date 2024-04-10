@@ -1,58 +1,91 @@
+from mstrio.project_objects import list_olap_cubes, OlapCube, SuperCube, list_all_cubes, list_reports, Report
+from mstrio import connection
 import re
+import datetime
+import getpass
+import csv, json, pickle, itertools
+import pandas as pd
 
-sql_query = "SELECT col1, col2 FROM table1 INNER JOIN table2 ON table1.id = table2.id"
-
-# Regex to extract table names
-tables = re.findall(r'FROM\s+(\S+)|JOIN\s+(\S+)', sql_query, re.IGNORECASE)
-tables = [item for sublist in tables for item in sublist if item]  # Flatten and remove empty strings
-
-# Regex to extract column names might be significantly more complex due to the variety of SQL syntax
-columns = re.findall(r'SELECT\s+(.*?)\s+FROM', sql_query, re.IGNORECASE)
-columns = columns[0].split(", ") if columns else []
-
-print("Tables:", tables)
-print("Columns:", columns)
-
-
+# Define the regex functions for extracting tables and columns
 def extract_tables(sql_query):
-    # This regex pattern might need to be refined based on your actual SQL queries
-    pattern = r'FROM\s+([`"]?.*?[`"]?\.\s*[`"]?.*?[`"]?)|JOIN\s+([`"]?.*?[`"]?\.\s*[`"]?.*?[`"]?)'
+    pattern = r'FROM\s+([`"]?.+?[`"]?)\s|JOIN\s+([`"]?.+?[`"]?)\s'
     matches = re.findall(pattern, sql_query, re.IGNORECASE)
-    # Flatten the list of tuples and remove None values and duplicates
-    tables = set([table for match in matches for table in match if table])
+    tables = set([match for tpl in matches for match in tpl if match])
     return list(tables)
 
 def extract_columns(sql_query):
-    # Extracting columns is significantly more complex; this is a naive approach
-    # It does not handle subqueries, CTEs, or complex cases
-    columns = []
-    # Attempt to split the SQL by 'FROM' to isolate the SELECT clause
     select_clause = re.split(r'\bFROM\b', sql_query, 1, re.IGNORECASE)[0]
     if select_clause.startswith('SELECT'):
-        # Further split by comma to get individual column names
         column_parts = select_clause[7:].split(',')
-        # Remove any SQL functions and trim whitespace
         columns = [re.sub(r'\(.*\)', '', part).strip() for part in column_parts]
     return columns
 
+def export_to_csv(level_id, df):
+    df.to_csv(f"{level_id}.csv", index=False, encoding='utf-8', sep=",", quoting=csv.QUOTE_ALL, escapechar="\\")
 
-# ... [previous code] ...
+def unique_list(alist): 
+    alist.sort()
+    alist = list(alist for alist,_ in itertools.groupby(alist))
+    return alist
 
-if sql_view:
-    # Clean up the SQL by replacing multiple whitespaces with a single space
-    sql_view_cleaned = " ".join(sql_view.split())
+# Define your connection variables
+SERVER_URL = "https://env-XXXXXX.customer.cloud.microstrategy.com/MicroStrategyLibrary"
+USERNAME = "mstr"
+PASSWORD = getpass.getpass(prompt='Password ')
+PROJECT_NAME = "MicroStrategy Tutorial"
 
-    # Use the new functions to extract tables and columns
+# Establish connection
+conn = connection.Connection(SERVER_URL, username=USERNAME, password=PASSWORD, project_name=PROJECT_NAME)
+conn.connect()
+
+# List OLAP Cubes with different conditions
+list_of_all_cubes_as_dicts = list_all_cubes(connection=conn, to_dictionary=True)
+print("\nFound " + str(len(list_of_all_cubes_as_dicts)) + " cubes\n")
+
+# Filter cubes
+cubes_subtypes = [776, 779]
+list_of_all_cubes_as_dicts = [cu for cu in list_of_all_cubes_as_dicts if cu['subtype'] in cubes_subtypes]
+print(f"Number of cubes: {len(list_of_all_cubes_as_dicts)}")
+
+# Process each cube
+tables_list, columns_list = [], []
+cubes_list = list_of_all_cubes_as_dicts[:]
+pattern = r"(select\s+.*?)\n\n"
+
+for i, cube in enumerate(cubes_list):
+    cube_id, cube_name, cube_subtype = cube["id"], cube["name"], cube["subtype"]
+    print(f"\n{'='*5}| {i+1} / {len(cubes_list)} - {cube_name} - id: {cube_id} |{'='*30}")
+
+    try:
+        current_cube = OlapCube(conn, cube_id)
+        sql_view = current_cube.export_sql_view()
+        sql_view_cleaned = " ".join(sql_view.split())
+    except Exception as e:
+        print(f"Failed to get the SQL for cube {cube_name} {cube_id}: {e}")
+        continue
+
     extracted_tables = extract_tables(sql_view_cleaned)
     extracted_columns = extract_columns(sql_view_cleaned)
 
-    # Append the results to your lists
     for table in extracted_tables:
-        if not table.startswith(("ZZ","*")):
-            tables_list.append([PROJECT_NAME,cube_id,cube_name,cube_subtype,table])
+        if not table.startswith(("ZZ", "*")):
+            tables_list.append([PROJECT_NAME, cube_id, cube_name, cube_subtype, table])
 
     for column in extracted_columns:
-        if not column.startswith(("ZZ","*")):
-            columns_list.append([PROJECT_NAME,cube_id,cube_name,cube_subtype,column])
+        if not column.startswith(("ZZ", "*")):
+            columns_list.append([PROJECT_NAME, cube_id, cube_name, cube_subtype, column])
 
-# ... [remaining code for exporting to CSV] ...
+print("FINITO")
+
+# Export to CSV
+tables_list = unique_list(tables_list)
+columns_list = unique_list(columns_list)
+
+headers = ["Project Name", "Cube ID", "Cube Name", "Cube Subtype", "Table Name"]
+df = pd.DataFrame(tables_list, columns=headers)
+
+headers = ["Project Name", "Cube ID", "Cube Name", "Cube Subtype", "Column Name"]
+dfc = pd.DataFrame(columns_list, columns=headers)
+
+export_to_csv("tables", df)
+export_to_csv("columns", dfc)

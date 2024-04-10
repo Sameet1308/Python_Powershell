@@ -12,3 +12,47 @@ columns = columns[0].split(", ") if columns else []
 
 print("Tables:", tables)
 print("Columns:", columns)
+
+
+def extract_tables(sql_query):
+    # This regex pattern might need to be refined based on your actual SQL queries
+    pattern = r'FROM\s+([`"]?.*?[`"]?\.\s*[`"]?.*?[`"]?)|JOIN\s+([`"]?.*?[`"]?\.\s*[`"]?.*?[`"]?)'
+    matches = re.findall(pattern, sql_query, re.IGNORECASE)
+    # Flatten the list of tuples and remove None values and duplicates
+    tables = set([table for match in matches for table in match if table])
+    return list(tables)
+
+def extract_columns(sql_query):
+    # Extracting columns is significantly more complex; this is a naive approach
+    # It does not handle subqueries, CTEs, or complex cases
+    columns = []
+    # Attempt to split the SQL by 'FROM' to isolate the SELECT clause
+    select_clause = re.split(r'\bFROM\b', sql_query, 1, re.IGNORECASE)[0]
+    if select_clause.startswith('SELECT'):
+        # Further split by comma to get individual column names
+        column_parts = select_clause[7:].split(',')
+        # Remove any SQL functions and trim whitespace
+        columns = [re.sub(r'\(.*\)', '', part).strip() for part in column_parts]
+    return columns
+
+
+# ... [previous code] ...
+
+if sql_view:
+    # Clean up the SQL by replacing multiple whitespaces with a single space
+    sql_view_cleaned = " ".join(sql_view.split())
+
+    # Use the new functions to extract tables and columns
+    extracted_tables = extract_tables(sql_view_cleaned)
+    extracted_columns = extract_columns(sql_view_cleaned)
+
+    # Append the results to your lists
+    for table in extracted_tables:
+        if not table.startswith(("ZZ","*")):
+            tables_list.append([PROJECT_NAME,cube_id,cube_name,cube_subtype,table])
+
+    for column in extracted_columns:
+        if not column.startswith(("ZZ","*")):
+            columns_list.append([PROJECT_NAME,cube_id,cube_name,cube_subtype,column])
+
+# ... [remaining code for exporting to CSV] ...

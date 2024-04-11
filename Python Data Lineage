@@ -1,47 +1,77 @@
+from mstrio.project_objects import list_all_cubes, OlapCube
+from mstrio import connection
+import re
+import getpass
 import pandas as pd
-from mstrio.connection import Connection
-from mstrio.cube import Cube, list_cubes
 
-# Replace these variables with your actual credentials
-base_url = 'YOUR_BASE_URL'  # e.g., 'https://your-microstrategy-server.com/MicroStrategyLibrary/api'
-username = 'YOUR_USERNAME'
-password = 'YOUR_PASSWORD'
-project_name = 'YOUR_PROJECT_NAME'
+# Function to extract tables and columns
+def extract_tables_columns(sql_query):
+    try:
+        table_pattern = r'FROM\s+([`"]?.+?[`"]?)\s|JOIN\s+([`"]?.+?[`"]?)\s'
+        column_pattern = r'SELECT\s+(.*?)\s+FROM'
+        
+        tables = set(re.findall(table_pattern, sql_query, re.IGNORECASE))
+        tables = [table for tpl in tables for table in tpl if table]
+        
+        columns_match = re.search(column_pattern, sql_query, re.IGNORECASE)
+        columns = columns_match.group(1).split(',') if columns_match else []
+        columns = [col.strip() for col in columns]
 
-# Establish a connection to the MicroStrategy server
-conn = Connection(base_url, username, password, project_name)
+        return tables, columns
+    except Exception as e:
+        print(f"Error in extract_tables_columns: {e}")
+        return [], []
+
+# Connection setup
+SERVER_URL = "https://env-XXXXXX.customer.cloud.microstrategy.com/MicroStrategyLibrary"
+USERNAME = "mstr"
+PASSWORD = getpass.getpass(prompt='Password: ')
+PROJECT_NAME = "MicroStrategy Tutorial"
 
 try:
-    # Connect to the project
+    conn = connection.Connection(SERVER_URL, username=USERNAME, password=PASSWORD, project_name=PROJECT_NAME)
     conn.connect()
+except Exception as e:
+    print(f"Error connecting to MicroStrategy: {e}")
+    exit()
 
-    # Fetch all cubes
-    cubes = list_cubes(connection=conn, project_id=conn.project_id)
+# Retrieve and process cubes
+try:
+    list_of_all_cubes_as_dicts = list_all_cubes(connection=conn, to_dictionary=True)
+    print("\nFound " + str(len(list_of_all_cubes_as_dicts)) + " cubes\n")
+except Exception as e:
+    print(f"Error retrieving cubes: {e}")
+    exit()
 
-    freeform_sql_cubes = []
-    # Check each cube to see if it's a freeform SQL cube
-    for cube_info in cubes:
-        cube = Cube(connection=conn, cube_id=cube_info['id'])
-        cube.fetch()
+cubes_subtypes = [776, 779]
+list_of_all_cubes_as_dicts = [cu for cu in list_of_all_cubes_as_dicts if cu['subtype'] in cubes_subtypes]
+print(f"Number of cubes: {len(list_of_all_cubes_as_dicts)}")
 
-        # Example condition: checking if the cube's definition contains SQL
-        # Adjust this based on your organization's specifics
-        if 'sql' in cube.definition.lower():
-            freeform_sql_cubes.append({
-                'Cube ID': cube_info['id'],
-                'Cube Name': cube_info['name'],
-                'Definition': cube.definition
-            })
+# Process each cube
+cube_data = []
+for cube in list_of_all_cubes_as_dicts:
+    cube_id, cube_name, cube_subtype = cube["id"], cube["name"], cube["subtype"]
+    try:
+        current_cube = OlapCube(conn, cube_id)
+        sql_view = current_cube.export_sql_view()
+        sql_view_cleaned = " ".join(sql_view.split())
 
-    # Counting the freeform SQL cubes
-    print("Total number of Freeform SQL Cubes:", len(freeform_sql_cubes))
+        tables, columns = extract_tables_columns(sql_view_cleaned)
+        for table in tables:
+            if not table.startswith(("ZZ", "*")):
+                for column in columns:
+                    if not column.startswith(("ZZ", "*")):
+                        cube_data.append([
+                            PROJECT_NAME, cube_id, cube_name, cube_subtype, table, column
+                        ])
+    except Exception as e:
+        print(f"Failed to get the SQL for cube {cube_name} {cube_id}: {e}")
 
-    # Exporting to Excel
-    df = pd.DataFrame(freeform_sql_cubes)
-    df.to_excel('freeform_sql_cubes.xlsx', index=False)
-
-    print("Data exported to Excel successfully.")
-
-finally:
-    # Disconnect the session
-    conn.close()
+# Convert to DataFrame and export to Excel
+headers = ["Project Name", "Cube ID", "Cube Name", "Cube Subtype", "Table Name", "Column Name"]
+combined_df = pd.DataFrame(cube_data, columns=headers)
+try:
+    combined_df.to_excel("cube_data.xlsx", index=False)
+    print("Export complete. Data saved to 'cube_data.xlsx'")
+except Exception as e:
+    print(f"Error exporting data to Excel: {e}")

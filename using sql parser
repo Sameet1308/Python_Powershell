@@ -8,7 +8,22 @@ import urllib3
 
 # Function to parse SQL and extract table and column information
 def parse_sql(sql_query):
-    # ... your existing parse_sql function ...
+    try:
+        # Parsing logic; ensure this returns lists, even if empty
+        table_pattern = r'FROM\s+([`"]?.+?[`"]?)\s|JOIN\s+([`"]?.+?[`"]?)\s'
+        column_pattern = r'SELECT\s+(.*?)\s+FROM'
+        
+        tables = set(re.findall(table_pattern, sql_query, re.IGNORECASE))
+        tables = [table for tpl in tables for table in tpl if table]
+        
+        columns_match = re.search(column_pattern, sql_query, re.IGNORECASE)
+        columns = columns_match.group(1).split(',') if columns_match else []
+        columns = [col.strip() for col in columns]
+
+        return tables, columns
+    except Exception as e:
+        print(f"Error parsing SQL: {e}")
+        return [], []
 
 # Suppress SSL warnings
 warnings.simplefilter('ignore', category=urllib3.exceptions.InsecureRequestWarning)
@@ -34,15 +49,15 @@ for cube in list_of_all_cubes_as_dicts:
     try:
         current_cube = OlapCube(conn, cube_id)
         sql_view = current_cube.export_sql_view()
-        tables, columns = parse_sql(sql_view)
-
-        for table in tables:
-            for column in columns:
-                cube_data.append([PROJECT_NAME, cube_id, cube_name, table, column])
-    
+        if sql_view:
+            tables, columns = parse_sql(sql_view)
+            for table in tables:
+                for column in columns:
+                    cube_data.append([PROJECT_NAME, cube_id, cube_name, table, column])
+        else:
+            print(f"No SQL view found for cube {cube_name} (ID: {cube_id})")
     except Exception as e:
         print(f"Error processing cube {cube_name} (ID: {cube_id}): {e}")
-        continue  # Continue to the next cube
 
 # Convert to DataFrame and export to Excel
 headers = ["Project Name", "Cube ID", "Cube Name", "Table Name", "Column Name"]

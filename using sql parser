@@ -8,26 +8,7 @@ import urllib3
 
 # Function to parse SQL and extract table and column information
 def parse_sql(sql_query):
-    parsed = sqlparse.parse(sql_query)
-    tables = set()
-    columns = set()
-
-    for token in parsed[0].tokens:
-        if token.ttype is sqlparse.tokens.Name or token.is_group:
-            token_str = str(token).lower()
-            if "select" in token_str or "from" in token_str or "join" in token_str:
-                token_content = token_str.split()
-                if "select" in token_content:
-                    columns.update(token_content[token_content.index("select") + 1:])
-                if "from" in token_content:
-                    tables.add(token_content[token_content.index("from") + 1])
-                if "join" in token_content:
-                    tables.add(token_content[token_content.index("join") + 1])
-    
-    # Clean up column names (remove commas, aliases, etc.)
-    cleaned_columns = {col.split()[0].replace(',', '') for col in columns}
-
-    return list(tables), list(cleaned_columns)
+    # ... your existing parse_sql function ...
 
 # Suppress SSL warnings
 warnings.simplefilter('ignore', category=urllib3.exceptions.InsecureRequestWarning)
@@ -49,15 +30,23 @@ list_of_all_cubes_as_dicts = list_all_cubes(connection=conn, to_dictionary=True)
 cube_data = []
 for cube in list_of_all_cubes_as_dicts:
     cube_id, cube_name = cube["id"], cube["name"]
-    current_cube = OlapCube(conn, cube_id)
-    sql_view = current_cube.export_sql_view()
+    
+    try:
+        current_cube = OlapCube(conn, cube_id)
+        sql_view = current_cube.export_sql_view()
+        tables, columns = parse_sql(sql_view)
 
-    tables, columns = parse_sql(sql_view)
-    for table in tables:
-        for column in columns:
-            cube_data.append([PROJECT_NAME, cube_id, cube_name, table, column])
+        for table in tables:
+            for column in columns:
+                cube_data.append([PROJECT_NAME, cube_id, cube_name, table, column])
+    
+    except Exception as e:
+        print(f"Error processing cube {cube_name} (ID: {cube_id}): {e}")
+        continue  # Continue to the next cube
 
 # Convert to DataFrame and export to Excel
 headers = ["Project Name", "Cube ID", "Cube Name", "Table Name", "Column Name"]
 combined_df = pd.DataFrame(cube_data, columns=headers)
 combined_df.to_excel("cube_data.xlsx", index=False)
+
+print("Data export complete. Check 'cube_data.xlsx'")

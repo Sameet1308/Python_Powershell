@@ -1,0 +1,52 @@
+from mstrio.project_objects import list_all_cubes, OlapCube
+from mstrio import connection
+import getpass
+import pandas as pd
+import warnings
+import urllib3
+
+# Suppress warnings (especially SSL related warnings)
+warnings.simplefilter('ignore', category=urllib3.exceptions.InsecureRequestWarning)
+
+# Connection setup
+SERVER_URL = "https://env-XXXXXX.customer.cloud.microstrategy.com/MicroStrategyLibrary"
+USERNAME = "mstr"
+PASSWORD = getpass.getpass(prompt='Password: ')
+PROJECT_NAME = "MicroStrategy Tutorial"
+
+try:
+    conn = connection.Connection(SERVER_URL, username=USERNAME, password=PASSWORD, project_name=PROJECT_NAME, ssl_verify=False)
+    conn.connect()
+except Exception as e:
+    print(f"Error connecting to MicroStrategy: {e}")
+    exit()
+
+# Retrieve and process cubes
+try:
+    list_of_all_cubes_as_dicts = list_all_cubes(connection=conn, to_dictionary=True)
+    print("\nFound " + str(len(list_of_all_cubes_as_dicts)) + " cubes\n")
+except Exception as e:
+    print(f"Error retrieving cubes: {e}")
+    exit()
+
+# Process each cube
+cube_data = []
+for cube in list_of_all_cubes_as_dicts:
+    cube_id, cube_name = cube["id"], cube["name"]
+    try:
+        current_cube = OlapCube(conn, cube_id)
+        sql_view = current_cube.export_sql_view()
+    except Exception as e:
+        print(f"Failed to get the SQL for cube {cube_name} {cube_id}: {e}")
+        sql_view = "Error retrieving SQL"
+
+    cube_data.append([PROJECT_NAME, cube_id, cube_name, sql_view])
+
+# Convert to DataFrame and export to Excel
+headers = ["Project Name", "Cube ID", "Cube Name", "Cube SQL"]
+combined_df = pd.DataFrame(cube_data, columns=headers)
+try:
+    combined_df.to_excel("cube_data.xlsx", index=False)
+    print("Export complete. Data saved to 'cube_data.xlsx'")
+except Exception as e:
+    print(f"Error exporting data to Excel: {e}")

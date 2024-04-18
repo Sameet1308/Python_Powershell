@@ -1,59 +1,72 @@
+import re
 import sqlparse
 from sqlparse.sql import IdentifierList, Identifier
 from sqlparse.tokens import Keyword, DML
 
-# Function to extract SQL queries from log content and parse them
-def extract_sql_details(content):
-    lines = content.strip().split('\n')
-    sql_statements = []
-    current_statement = ""
-
-    # Iterate over the lines and concatenate SQL query parts
-    for line in lines:
-        if line.strip().startswith('SQL'):  # Start capturing the SQL query
-            current_statement = line
-        elif current_statement:  # Already in SQL mode, concatenate lines
-            current_statement += ' ' + line
-            if ';' in line:  # SQL statement terminator found
-                sql_statements.append(current_statement)
-                current_statement = ""
+# Function to read the log file and remove timestamps and line numbers
+def read_and_clean_log(file_path):
+    cleaned_content = []
+    try:
+        with open(file_path, 'r') as file:
+            for line in file:
+                # Remove the timestamp and line numbers at the beginning of each line
+                # Assume timestamps are like '040T50323.109-0400' and lines may start with numbers like '0030'
+                cleaned_line = re.sub(r'^\S+\s+\d+\s+', '', line).strip()
+                cleaned_content.append(cleaned_line)
+    except FileNotFoundError:
+        print(f"The file at {file_path} was not found.")
+    except Exception as e:
+        print(f"An error occurred: {e}")
     
-    # Process each SQL statement
+    return cleaned_content
+
+# Function to extract SQL details from cleaned log content
+def extract_sql_details(content):
+    sql_statements = []
+    current_query = []
+    capturing = False
+    
+    for line in content:
+        if 'SQL' in line:  # Assuming 'SQL' indicates the start of an SQL statement
+            capturing = True
+            current_query = [line]
+        elif capturing and ';' in line:  # Assuming ';' is the end of an SQL statement
+            current_query.append(line)
+            sql_statements.append(' '.join(current_query))
+            capturing = False
+            current_query = []
+        elif capturing:
+            current_query.append(line)
+
+    # Parsing each SQL statement to extract details
     for statement in sql_statements:
-        # Parse the SQL statement using sqlparse
         parsed = sqlparse.parse(statement)[0]
-        columns = []
         tables = []
-        # Use SQL tokens to identify and extract table and column names
+        columns = []
+
         for token in parsed.tokens:
+            if token.ttype is DML and token.value.upper() == 'SELECT':
+                continue
             if isinstance(token, IdentifierList):
                 for identifier in token.get_identifiers():
-                    columns.append(identifier.get_real_name())
+                    if identifier.get_parent_name() == 'FROM':
+                        tables.append(identifier.get_real_name())
+                    else:
+                        columns.append(identifier.get_real_name())
             elif isinstance(token, Identifier):
                 if token.get_parent_name() == 'FROM':
                     tables.append(token.get_real_name())
                 else:
                     columns.append(token.get_real_name())
             elif token.ttype is Keyword and token.value.upper() == 'FROM':
-                # Next token is table name, skip any whitespace
                 index = parsed.token_index(token) + 1
-                while isinstance(parsed.tokens[index], sqlparse.sql.Whitespace):
-                    index += 1
                 if isinstance(parsed.tokens[index], Identifier):
                     tables.append(parsed.tokens[index].get_real_name())
 
-        # Print out what we have extracted
         print(f"Tables: {tables}")
         print(f"Columns: {columns}")
 
-# Sample log content after timestamp and line number removal
-sample_log_content = """
-OLEDB CONNECT TO ***
-LOAD
-*
-SQL
-Select PREM_LS_SUM.ACTG_DT, PREM_LS_SUM.AY FROM my_table;
-"""
-
-# Call the function to extract SQL details
-extract_sql_details(sample_log_content)
+# Main script execution
+log_file_path = '/path/to/your/log_file.log'  # Replace with the actual path to your log file
+cleaned_content = read_and_clean_log(log_file_path)
+extract_sql_details(cleaned_content)

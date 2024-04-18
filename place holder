@@ -1,41 +1,16 @@
-import re
+# Define the path to the log file
+log_file_path = '/path/to/your/log_file.log'  # Replace with the actual path to your log file
 
-# Function to extract SQL statements from log lines
-def extract_sql_statements(log_lines):
-    sql_statements = []
-    for line in log_lines:
-        if line.startswith('SELECT'):
-            # Assume the SQL statement ends with a double-quote
-            sql_statement = line.split('"')[1]
-            sql_statements.append(sql_statement)
-    return sql_statements
+# Function to read and print the contents of the log file
+def read_log_file(file_path):
+    try:
+        with open(file_path, 'r') as file:
+            # Read the file contents
+            log_contents = file.read()
+            # Print the contents
+            print(log_contents)
+    except Exception as e:
+        print(f"An error occurred: {e}")
 
-# Function to extract table and column names from SQL statements
-def parse_sql(sql_statements):
-    for sql in sql_statements:
-        # Find the table name - assuming it is the first FROM encountered
-        table_search = re.search(r'FROM\s+([^\s,;]+)', sql, re.IGNORECASE)
-        if table_search:
-            table_name = table_search.group(1)
-            print(f"Table Name: {table_name}")
-
-        # Find column names - assuming they are between SELECT and FROM
-        columns_search = re.search(r'SELECT\s+(.*?)\s+FROM', sql, re.IGNORECASE | re.DOTALL)
-        if columns_search:
-            columns_part = columns_search.group(1)
-            # Split by comma, consider possibility of sub-SELECTs or functions
-            columns = re.split(r',\s*(?![^()]*\))', columns_part)
-            clean_columns = [column.strip() for column in columns]
-            print(f"Columns: {clean_columns}")
-
-# Read the log file content from a text file
-log_file_path = 'path_to_your_log_file.txt'  # Replace with your log file path
-
-with open(log_file_path, 'r') as file:
-    log_content = file.readlines()
-
-# Extract SQL statements
-sql_statements = extract_sql_statements(log_content)
-
-# Parse and print details of SQL statements
-parse_sql(sql_statements)
+# Call the function to read and print the log file
+read_log_file(log_file_path)

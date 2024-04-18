@@ -1,42 +1,41 @@
 import re
 
-def parse_qlikview_logs(log_file):
-  """
-  Parses a QlikView log file and extracts information about data access. 
+# Function to extract SQL statements from log lines
+def extract_sql_statements(log_lines):
+    sql_statements = []
+    for line in log_lines:
+        if line.startswith('SELECT'):
+            # Assume the SQL statement ends with a double-quote
+            sql_statement = line.split('"')[1]
+            sql_statements.append(sql_statement)
+    return sql_statements
 
-  Args:
-      log_file (str): Path to the QlikView log file.
+# Function to extract table and column names from SQL statements
+def parse_sql(sql_statements):
+    for sql in sql_statements:
+        # Find the table name - assuming it is the first FROM encountered
+        table_search = re.search(r'FROM\s+([^\s,;]+)', sql, re.IGNORECASE)
+        if table_search:
+            table_name = table_search.group(1)
+            print(f"Table Name: {table_name}")
 
-  Returns:
-      list: List of dictionaries containing extracted information.
-  """
-  data = []
-  with open(log_file, 'r') as f:
-    # Skip header line
-    next(f)
-    for line in f:
-      # Split line by tabs
-      parts = line.strip().split('\t')
-      # Focus on data load messages
-      if any(word in parts[1] for word in ["Data load started", "Loaded data from"]):
-        # Extract document name (optional)
-        document = parts[0] if parts[0] else None
-        # Extract table/file name (heuristic)
-        table_name = re.findall(r"(?<=from )\w+", parts[1], re.IGNORECASE)
-        # Potential column names (heuristic)
-        columns = re.findall(r"(?<=loaded )\w+(?=,|$)", parts[1], re.IGNORECASE)
-        data.append({
-          "document": document,
-          "table_name": table_name[0] if table_name else None,
-          "columns": columns
-        })
-  return data
+        # Find column names - assuming they are between SELECT and FROM
+        columns_search = re.search(r'SELECT\s+(.*?)\s+FROM', sql, re.IGNORECASE | re.DOTALL)
+        if columns_search:
+            columns_part = columns_search.group(1)
+            # Split by comma, consider possibility of sub-SELECTs or functions
+            columns = re.split(r',\s*(?![^()]*\))', columns_part)
+            clean_columns = [column.strip() for column in columns]
+            print(f"Columns: {clean_columns}")
 
-# Example usage
-log_data = parse_qlikview_logs("path/to/your/qlikview.log")
+# Read the log file content from a text file
+log_file_path = 'path_to_your_log_file.txt'  # Replace with your log file path
 
-# Print extracted information
-for entry in log_data:
-  print(f"Document: {entry['document']}")
-  print(f"Table: {entry['table_name']}")
-  print(f"Columns: {', '.join(entry['columns'])}\n")
+with open(log_file_path, 'r') as file:
+    log_content = file.readlines()
+
+# Extract SQL statements
+sql_statements = extract_sql_statements(log_content)
+
+# Parse and print details of SQL statements
+parse_sql(sql_statements)

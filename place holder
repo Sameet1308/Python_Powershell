@@ -1,16 +1,59 @@
-# Define the path to the log file
-log_file_path = '/path/to/your/log_file.log'  # Replace with the actual path to your log file
+import sqlparse
+from sqlparse.sql import IdentifierList, Identifier
+from sqlparse.tokens import Keyword, DML
 
-# Function to read and print the contents of the log file
-def read_log_file(file_path):
-    try:
-        with open(file_path, 'r') as file:
-            # Read the file contents
-            log_contents = file.read()
-            # Print the contents
-            print(log_contents)
-    except Exception as e:
-        print(f"An error occurred: {e}")
+# Function to extract SQL queries from log content and parse them
+def extract_sql_details(content):
+    lines = content.strip().split('\n')
+    sql_statements = []
+    current_statement = ""
 
-# Call the function to read and print the log file
-read_log_file(log_file_path)
+    # Iterate over the lines and concatenate SQL query parts
+    for line in lines:
+        if line.strip().startswith('SQL'):  # Start capturing the SQL query
+            current_statement = line
+        elif current_statement:  # Already in SQL mode, concatenate lines
+            current_statement += ' ' + line
+            if ';' in line:  # SQL statement terminator found
+                sql_statements.append(current_statement)
+                current_statement = ""
+    
+    # Process each SQL statement
+    for statement in sql_statements:
+        # Parse the SQL statement using sqlparse
+        parsed = sqlparse.parse(statement)[0]
+        columns = []
+        tables = []
+        # Use SQL tokens to identify and extract table and column names
+        for token in parsed.tokens:
+            if isinstance(token, IdentifierList):
+                for identifier in token.get_identifiers():
+                    columns.append(identifier.get_real_name())
+            elif isinstance(token, Identifier):
+                if token.get_parent_name() == 'FROM':
+                    tables.append(token.get_real_name())
+                else:
+                    columns.append(token.get_real_name())
+            elif token.ttype is Keyword and token.value.upper() == 'FROM':
+                # Next token is table name, skip any whitespace
+                index = parsed.token_index(token) + 1
+                while isinstance(parsed.tokens[index], sqlparse.sql.Whitespace):
+                    index += 1
+                if isinstance(parsed.tokens[index], Identifier):
+                    tables.append(parsed.tokens[index].get_real_name())
+
+        # Print out what we have extracted
+        print(f"Tables: {tables}")
+        print(f"Columns: {columns}")
+
+# Sample log content after timestamp and line number removal
+sample_log_content = """
+OLEDB CONNECT TO ***
+LOAD
+*
+SQL
+Select PREM_LS_SUM.ACTG_DT, PREM_LS_SUM.AY FROM my_table;
+"""
+
+# Call the function to extract SQL details
+extract_sql_details(sample_log_content)

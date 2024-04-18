@@ -1,0 +1,28 @@
+import re
+import pandas as pd
+
+# Path to Qlik log file
+log_file_path = 'path/to/qlik/log/file.log'
+
+# Regular expression pattern for extracting table and column information
+pattern = r'Table\s\((.*?)\)\s\((.*?)\)'
+
+# Initialize empty list to store table and column information
+table_column_info = []
+
+# Open Qlik log file and read lines
+with open(log_file_path, 'r') as f:
+    lines = f.readlines()
+
+# Iterate through lines and extract table and column information
+for line in lines:
+    match = re.search(pattern, line)
+    if match:
+        table, column = match.groups()
+        table_column_info.append((table, column))
+
+# Create empty DataFrame
+df = pd.DataFrame(table_column_info, columns=['Table', 'Column'])
+
+# Print DataFrame
+print(df)

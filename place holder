@@ -1,28 +1,42 @@
 import re
-import pandas as pd
 
-# Path to Qlik log file
-log_file_path = 'path/to/qlik/log/file.log'
+def parse_qlikview_logs(log_file):
+  """
+  Parses a QlikView log file and extracts information about data access. 
 
-# Regular expression pattern for extracting table and column information
-pattern = r'Table\s\((.*?)\)\s\((.*?)\)'
+  Args:
+      log_file (str): Path to the QlikView log file.
 
-# Initialize empty list to store table and column information
-table_column_info = []
+  Returns:
+      list: List of dictionaries containing extracted information.
+  """
+  data = []
+  with open(log_file, 'r') as f:
+    # Skip header line
+    next(f)
+    for line in f:
+      # Split line by tabs
+      parts = line.strip().split('\t')
+      # Focus on data load messages
+      if any(word in parts[1] for word in ["Data load started", "Loaded data from"]):
+        # Extract document name (optional)
+        document = parts[0] if parts[0] else None
+        # Extract table/file name (heuristic)
+        table_name = re.findall(r"(?<=from )\w+", parts[1], re.IGNORECASE)
+        # Potential column names (heuristic)
+        columns = re.findall(r"(?<=loaded )\w+(?=,|$)", parts[1], re.IGNORECASE)
+        data.append({
+          "document": document,
+          "table_name": table_name[0] if table_name else None,
+          "columns": columns
+        })
+  return data
 
-# Open Qlik log file and read lines
-with open(log_file_path, 'r') as f:
-    lines = f.readlines()
+# Example usage
+log_data = parse_qlikview_logs("path/to/your/qlikview.log")
 
-# Iterate through lines and extract table and column information
-for line in lines:
-    match = re.search(pattern, line)
-    if match:
-        table, column = match.groups()
-        table_column_info.append((table, column))
-
-# Create empty DataFrame
-df = pd.DataFrame(table_column_info, columns=['Table', 'Column'])
-
-# Print DataFrame
-print(df)
+# Print extracted information
+for entry in log_data:
+  print(f"Document: {entry['document']}")
+  print(f"Table: {entry['table_name']}")
+  print(f"Columns: {', '.join(entry['columns'])}\n")

@@ -1,7 +1,5 @@
 import re
-import pandas as pd
 
-# Read log file lines
 def read_log_file(file_path):
     try:
         with open(file_path, 'r') as file:
@@ -10,72 +8,51 @@ def read_log_file(file_path):
         print(f"Error reading file: {e}")
         return []
 
-# Clean log lines from unwanted characters like timestamps and line numbers
 def clean_log_lines(lines):
     cleaned_lines = []
+    # Regex to match timestamps, potential line numbers or other prefixes before actual SQL code starts
+    pattern = re.compile(r'^[\d-]+\s[\d:]+\s\d+\s\S+\s+(SELECT)', re.IGNORECASE)
     for line in lines:
-        # Remove common leading characters like timestamps, line numbers, or other prefixes
-        # Assumes log line starts with a timestamp followed by a space, then a line number or identifier, then another space
-        # This regex targets the removal of the timestamp and any identifiers up to the start of an SQL keyword
-        cleaned_line = re.sub(r'^\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2}\s+\d+\s+\S+\s+', '', line)
+        # Replace the matched pattern with "SELECT" to ensure we start clean with the SQL statement
+        cleaned_line = pattern.sub(r'\1', line)
         cleaned_lines.append(cleaned_line)
     return cleaned_lines
 
-# Concatenate SQL statements
-def concatenate_sql_lines(lines):
+def extract_sql_statements(lines):
     sql_statements = []
-    current_statement = []
-    capturing = False
-    
+    current_sql = ""
     for line in lines:
-        if 'SELECT' in line and not capturing:
-            capturing = True
-            current_statement = [line]
-        elif capturing:
-            current_statement.append(line)
+        # Check if the line starts with SELECT to initiate or continue capturing an SQL statement
+        if re.match(r'SELECT', line, re.IGNORECASE):
+            if current_sql:  # If there's an ongoing SQL capture, store it before starting a new one
+                sql_statements.append(current_sql.strip())
+                current_sql = ""
+            current_sql = line.strip()
+        elif current_sql:
+            # Continue appending lines to the current SQL statement
+            current_sql += " " + line.strip()
+            # If the line contains FROM followed by a word, capture up to that word and conclude this SQL statement
             if 'FROM' in line:
-                next_word_match = re.search(r'FROM\s+(\w+)', line)
-                if next_word_match:
-                    next_word = next_word_match.group(1)
-                    current_statement.append(next_word)
-                    sql_statements.append(' '.join(current_statement).strip())
-                    capturing = False
-                    current_statement = []
+                from_match = re.search(r'FROM\s+(\w+)', line, re.IGNORECASE)
+                if from_match:
+                    current_sql += " " + from_match.group(1)  # Add the table name to the SQL statement
+                    sql_statements.append(current_sql.strip())
+                    current_sql = ""  # Reset for the next SQL statement
 
-    if capturing and current_statement:
-        sql_statements.append(' '.join(current_statement).strip())
+    # Ensure the last SQL statement is added if not already done
+    if current_sql:
+        sql_statements.append(current_sql.strip())
 
     return sql_statements
 
-# Extract table names and columns from SQL statements
-def extract_tables_and_columns(sql_statements):
-    table_columns = []
-    
-    for sql in sql_statements:
-        column_match = re.findall(r'SELECT (.*?) FROM', sql, re.IGNORECASE)
-        table_match = re.search(r'FROM\s+(\w+)', sql, re.IGNORECASE)
-        
-        if column_match and table_match:
-            columns = column_match[0].split(',')
-            columns = [col.strip() for col in columns]
-            table = table_match.group(1)
-            table_columns.append({'table': table, 'columns': columns})
-
-    return table_columns
-
-# Convert to DataFrame
-def to_dataframe(table_columns):
-    return pd.DataFrame(table_columns)
-
-# Main function
 def main():
-    log_file_path = 'path/to/your/log_file.log'  # Update the path to your log file
+    log_file_path = 'path/to/your/log_file.log'  # Ensure this is correctly set to your log file path
     lines = read_log_file(log_file_path)
     cleaned_lines = clean_log_lines(lines)
-    sql_statements = concatenate_sql_lines(cleaned_lines)
-    table_columns = extract_tables_and_columns(sql_statements)
-    df = to_dataframe(table_columns)
-    print(df)
+    sql_statements = extract_sql_statements(cleaned_lines)
+    for statement in sql_statements:
+        print(statement)
+        print('-' * 40)  # Separator between SQL statements for clarity
 
 if __name__ == "__main__":
     main()

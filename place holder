@@ -1,72 +1,73 @@
 import re
-import sqlparse
-from sqlparse.sql import IdentifierList, Identifier
-from sqlparse.tokens import Keyword, DML
 
-# Function to read the log file and remove timestamps and line numbers
+# Patterns for simplified SQL components
+cte_pattern = re.compile(r'WITH\s+(\w+)\s+AS\s+\(([^;]+?)\)', re.IGNORECASE | re.DOTALL)
+join_pattern = re.compile(r'JOIN\s+(\w+)\s+ON\s+([^;]+?)(?=\s+JOIN|\s+WHERE|\s+ORDER|\s+GROUP|\s+HAVING|\s+LIMIT|\s*$)', re.IGNORECASE | re.DOTALL)
+subquery_pattern = re.compile(r'(\bFROM|\bWHERE|\bAND|\bOR)\s+\([^)]+\)', re.IGNORECASE | re.DOTALL)
+
+def extract_sql_components(sql):
+    try:
+        ctes = re.findall(cte_pattern, sql)
+        joins = re.findall(join_pattern, sql)
+        subqueries = re.findall(subquery_pattern, sql)
+
+        # Output extracted CTEs
+        print("CTEs:")
+        for cte_name, cte_body in ctes:
+            print(f"Name: {cte_name}, Body: {cte_body.strip()}")
+
+        # Output extracted JOINs
+        print("\nJoins:")
+        for table, on_clause in joins:
+            print(f"Table: {table}, ON Clause: {on_clause.strip()}")
+
+        # Output extracted Subqueries
+        print("\nSubqueries:")
+        for subquery in subqueries:
+            print(f"Subquery: {subquery.strip()}")
+
+    except Exception as e:
+        print(f"An error occurred during SQL component extraction: {e}")
+
+# Read and clean the log file
 def read_and_clean_log(file_path):
     cleaned_content = []
     try:
         with open(file_path, 'r') as file:
             for line in file:
-                # Remove the timestamp and line numbers at the beginning of each line
-                # Assume timestamps are like '040T50323.109-0400' and lines may start with numbers like '0030'
+                # Assuming timestamps and line numbers to remove are at the start of the line
                 cleaned_line = re.sub(r'^\S+\s+\d+\s+', '', line).strip()
                 cleaned_content.append(cleaned_line)
     except FileNotFoundError:
-        print(f"The file at {file_path} was not found.")
+        print(f"File not found: {file_path}")
     except Exception as e:
-        print(f"An error occurred: {e}")
-    
+        print(f"An error occurred while reading the log file: {e}")
     return cleaned_content
 
-# Function to extract SQL details from cleaned log content
-def extract_sql_details(content):
+# Function to concatenate lines that are part of the same SQL statement
+def concatenate_sql_lines(lines):
     sql_statements = []
-    current_query = []
-    capturing = False
+    current_statement = []
+    for line in lines:
+        # Add lines to the current statement until we hit a semicolon
+        current_statement.append(line)
+        if ';' in line:
+            # End of statement reached; join lines and add to list of statements
+            sql_statements.append(' '.join(current_statement))
+            current_statement = []
+    return sql_statements
+
+# Main execution
+if __name__ == "__main__":
+    log_file_path = 'path/to/your/log_file.log'  # Replace with your actual file path
     
-    for line in content:
-        if 'SQL' in line:  # Assuming 'SQL' indicates the start of an SQL statement
-            capturing = True
-            current_query = [line]
-        elif capturing and ';' in line:  # Assuming ';' is the end of an SQL statement
-            current_query.append(line)
-            sql_statements.append(' '.join(current_query))
-            capturing = False
-            current_query = []
-        elif capturing:
-            current_query.append(line)
-
-    # Parsing each SQL statement to extract details
-    for statement in sql_statements:
-        parsed = sqlparse.parse(statement)[0]
-        tables = []
-        columns = []
-
-        for token in parsed.tokens:
-            if token.ttype is DML and token.value.upper() == 'SELECT':
-                continue
-            if isinstance(token, IdentifierList):
-                for identifier in token.get_identifiers():
-                    if identifier.get_parent_name() == 'FROM':
-                        tables.append(identifier.get_real_name())
-                    else:
-                        columns.append(identifier.get_real_name())
-            elif isinstance(token, Identifier):
-                if token.get_parent_name() == 'FROM':
-                    tables.append(token.get_real_name())
-                else:
-                    columns.append(token.get_real_name())
-            elif token.ttype is Keyword and token.value.upper() == 'FROM':
-                index = parsed.token_index(token) + 1
-                if isinstance(parsed.tokens[index], Identifier):
-                    tables.append(parsed.tokens[index].get_real_name())
-
-        print(f"Tables: {tables}")
-        print(f"Columns: {columns}")
-
-# Main script execution
-log_file_path = '/path/to/your/log_file.log'  # Replace with the actual path to your log file
-cleaned_content = read_and_clean_log(log_file_path)
-extract_sql_details(cleaned_content)
+    # Read and clean the log file content
+    cleaned_content = read_and_clean_log(log_file_path)
+    
+    # Concatenate the cleaned content into individual SQL statements
+    sql_statements = concatenate_sql_lines(cleaned_content)
+    
+    # Process each SQL statement and extract components
+    for sql in sql_statements:
+        print(f"\nProcessing SQL statement: {sql}\n")
+        extract_sql_components(sql)

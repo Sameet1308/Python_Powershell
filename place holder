@@ -49,12 +49,20 @@ def concatenate_sql_lines(lines):
     sql_statements = []
     current_statement = []
     for line in lines:
-        # Add lines to the current statement until we hit a semicolon
-        current_statement.append(line)
-        if ';' in line:
-            # End of statement reached; join lines and add to list of statements
-            sql_statements.append(' '.join(current_statement))
-            current_statement = []
+        # If the line starts with a SQL keyword or is a continuation of the SELECT clause, we'll assume it's part of the SQL statement
+        if line.strip().startswith(('SELECT', 'WITH', 'INSERT', 'UPDATE', 'DELETE')) or (current_statement and 'SELECT' in current_statement[-1]):
+            current_statement.append(line)
+        else:
+            if current_statement:
+                # Join the collected lines into a single statement
+                sql_statements.append(' '.join(current_statement).strip())
+                current_statement = []
+            # If it's not a SQL statement or a continuation, skip or handle non-SQL lines as needed
+            
+    # Don't forget to add the last statement if the file ends without a non-SQL line
+    if current_statement:
+        sql_statements.append(' '.join(current_statement).strip())
+        
     return sql_statements
 
 # Main execution

@@ -1,91 +1,80 @@
 import re
+import pandas as pd
 
-# Patterns for simplified SQL components
-cte_pattern = re.compile(r'WITH\s+(\w+)\s+AS\s+\(([^;]+?)\)', re.IGNORECASE | re.DOTALL)
-join_pattern = re.compile(r'JOIN\s+(\w+)\s+ON\s+([^;]+?)(?=\s+JOIN|\s+WHERE|\s+ORDER|\s+GROUP|\s+HAVING|\s+LIMIT|\s*$)', re.IGNORECASE | re.DOTALL)
-subquery_pattern = re.compile(r'(\bFROM|\bWHERE|\bAND|\bOR)\s+\([^)]+\)', re.IGNORECASE | re.DOTALL)
-
-def extract_sql_components(sql):
-    try:
-        ctes = re.findall(cte_pattern, sql)
-        joins = re.findall(join_pattern, sql)
-        subqueries = re.findall(subquery_pattern, sql)
-
-        # Output extracted CTEs
-        print("CTEs:")
-        for cte_name, cte_body in ctes:
-            print(f"Name: {cte_name}, Body: {cte_body.strip()}")
-
-        # Output extracted JOINs
-        print("\nJoins:")
-        for table, on_clause in joins:
-            print(f"Table: {table}, ON Clause: {on_clause.strip()}")
-
-        # Output extracted Subqueries
-        print("\nSubqueries:")
-        for subquery in subqueries:
-            print(f"Subquery: {subquery.strip()}")
-
-    except Exception as e:
-        print(f"An error occurred during SQL component extraction: {e}")
-
-# Read and clean the log file
-def read_and_clean_log(file_path):
-    cleaned_content = []
+# Read log file lines
+def read_log_file(file_path):
     try:
         with open(file_path, 'r') as file:
-            for line in file:
-                # Assuming timestamps and line numbers to remove are at the start of the line
-                cleaned_line = re.sub(r'^\S+\s+\d+\s+', '', line).strip()
-                cleaned_content.append(cleaned_line)
-    except FileNotFoundError:
-        print(f"File not found: {file_path}")
+            return file.readlines()
     except Exception as e:
-        print(f"An error occurred while reading the log file: {e}")
-    return cleaned_content
+        print(f"Error reading file: {e}")
+        return []
 
-# Function to concatenate lines that are part of the same SQL statement
+# Clean log lines from unwanted characters like timestamps and line numbers
+def clean_log_lines(lines):
+    cleaned_lines = []
+    for line in lines:
+        # Assume timestamp and line numbers are formatted at the start of each line
+        # Example: '2022-01-01 12:00:00 0001 SQL Statement here;'
+        cleaned_line = re.sub(r'^\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2}\s+\d+\s+', '', line)
+        cleaned_lines.append(cleaned_line)
+    return cleaned_lines
+
+# Concatenate SQL statements
 def concatenate_sql_lines(lines):
     sql_statements = []
     current_statement = []
-    capturing = False  # Flag to track if we are currently capturing an SQL statement
+    capturing = False
     
     for line in lines:
         if 'SELECT' in line and not capturing:
-            capturing = True  # Start capturing when 'SELECT' is found
+            capturing = True
             current_statement = [line]
         elif capturing:
             current_statement.append(line)
-            # Check if the line contains 'FROM' and then stop capturing after capturing the next word
             if 'FROM' in line:
-                # Extract the word following 'FROM' using regex
                 next_word_match = re.search(r'FROM\s+(\w+)', line)
                 if next_word_match:
-                    # Append the next word to the current statement and prepare to end capturing
                     next_word = next_word_match.group(1)
                     current_statement.append(next_word)
-                    # End capturing after this line
                     sql_statements.append(' '.join(current_statement).strip())
                     capturing = False
                     current_statement = []
 
-    # If capturing didn't stop due to no more lines (edge case), add the last captured statement
-    if capturing and current_statement:
+    if capturing and current_statement:  # Handling edge case where last statement isn't ended properly
         sql_statements.append(' '.join(current_statement).strip())
 
     return sql_statements
 
-# Main execution
-if __name__ == "__main__":
-    log_file_path = 'path/to/your/log_file.log'  # Replace with your actual file path
+# Extract table names and columns from SQL statements
+def extract_tables_and_columns(sql_statements):
+    table_columns = []
     
-    # Read and clean the log file content
-    cleaned_content = read_and_clean_log(log_file_path)
-    
-    # Concatenate the cleaned content into individual SQL statements
-    sql_statements = concatenate_sql_lines(cleaned_content)
-    
-    # Process each SQL statement and extract components
     for sql in sql_statements:
-        print(f"\nProcessing SQL statement: {sql}\n")
-        extract_sql_components(sql)
+        column_match = re.findall(r'SELECT (.*?) FROM', sql, re.IGNORECASE)
+        table_match = re.search(r'FROM\s+(\w+)', sql, re.IGNORECASE)
+        
+        if column_match and table_match:
+            columns = column_match[0].split(',')
+            columns = [col.strip() for col in columns]  # Clean up whitespace
+            table = table_match.group(1)
+            table_columns.append({'table': table, 'columns': columns})
+
+    return table_columns
+
+# Convert to DataFrame
+def to_dataframe(table_columns):
+    return pd.DataFrame(table_columns)
+
+# Main function
+def main():
+    log_file_path = 'path/to/your/log_file.log'  # Update the path to your log file
+    lines = read_log_file(log_file_path)
+    cleaned_lines = clean_log_lines(lines)
+    sql_statements = concatenate_sql_lines(cleaned_lines)
+    table_columns = extract_tables_and_columns(sql_statements)
+    df = to_dataframe(table_columns)
+    print(df)
+
+if __name__ == "__main__":
+    main()

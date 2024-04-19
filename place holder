@@ -48,21 +48,31 @@ def read_and_clean_log(file_path):
 def concatenate_sql_lines(lines):
     sql_statements = []
     current_statement = []
+    capturing = False  # Flag to track if we are currently capturing an SQL statement
+    
     for line in lines:
-        # If the line starts with a SQL keyword or is a continuation of the SELECT clause, we'll assume it's part of the SQL statement
-        if line.strip().startswith(('SELECT', 'WITH', 'INSERT', 'UPDATE', 'DELETE')) or (current_statement and 'SELECT' in current_statement[-1]):
+        if 'SELECT' in line and not capturing:
+            capturing = True  # Start capturing when 'SELECT' is found
+            current_statement = [line]
+        elif capturing:
             current_statement.append(line)
-        else:
-            if current_statement:
-                # Join the collected lines into a single statement
-                sql_statements.append(' '.join(current_statement).strip())
-                current_statement = []
-            # If it's not a SQL statement or a continuation, skip or handle non-SQL lines as needed
-            
-    # Don't forget to add the last statement if the file ends without a non-SQL line
-    if current_statement:
+            # Check if the line contains 'FROM' and then stop capturing after capturing the next word
+            if 'FROM' in line:
+                # Extract the word following 'FROM' using regex
+                next_word_match = re.search(r'FROM\s+(\w+)', line)
+                if next_word_match:
+                    # Append the next word to the current statement and prepare to end capturing
+                    next_word = next_word_match.group(1)
+                    current_statement.append(next_word)
+                    # End capturing after this line
+                    sql_statements.append(' '.join(current_statement).strip())
+                    capturing = False
+                    current_statement = []
+
+    # If capturing didn't stop due to no more lines (edge case), add the last captured statement
+    if capturing and current_statement:
         sql_statements.append(' '.join(current_statement).strip())
-        
+
     return sql_statements
 
 # Main execution

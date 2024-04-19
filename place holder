@@ -14,10 +14,10 @@ def read_log_file(file_path):
 def clean_log_lines(lines):
     cleaned_lines = []
     for line in lines:
-        # Example of cleaning a complex line with multiple possible prefixes:
-        # '2023-04-04 12:34:56 00123 Some identifier SQL Select...'
-        # This regex will remove any leading date/time and digits or identifiers up to the SQL keyword.
-        cleaned_line = re.sub(r'^\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2}\s+\d+\s+[^\s]+\s+(?=(SELECT|INSERT|UPDATE|DELETE|WITH))', '', line, flags=re.IGNORECASE)
+        # Remove common leading characters like timestamps, line numbers, or other prefixes
+        # Assumes log line starts with a timestamp followed by a space, then a line number or identifier, then another space
+        # This regex targets the removal of the timestamp and any identifiers up to the start of an SQL keyword
+        cleaned_line = re.sub(r'^\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2}\s+\d+\s+\S+\s+', '', line)
         cleaned_lines.append(cleaned_line)
     return cleaned_lines
 

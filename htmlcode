@@ -3,11 +3,18 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Chapter Selection</title>
+<title>Responsive Chapter Selection</title>
 <style>
+    body, html {
+        height: 100%;
+        margin: 0;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+    }
     button {
-        font-size: 16px;
-        padding: 10px 20px;
+        height: 10vh; /* Sets button height as a percentage of the viewport height */
+        padding: 0 20px;
         margin: 5px;
         border: none;
         border-bottom: 2px solid transparent; /* Prevents layout shift when border is added */
@@ -15,6 +22,7 @@
         color: black;
         outline: none;
         transition: color 0.3s, border-bottom 0.3s;
+        font-size: 2vh; /* Sets font size as a percentage of the viewport height */
     }
     button:hover {
         color: red;
@@ -26,11 +34,13 @@
 </style>
 </head>
 <body>
-    <button id="btn1" class="selected" onclick="selectButton('btn1')">Chapter 1</button>
-    <button id="btn2" onclick="selectButton('btn2')">Chapter 2</button>
-    <button id="btn3" onclick="selectButton('btn3')">Chapter 3</button>
-    <button id="btn4" onclick="selectButton('btn4')">Chapter 4</button>
-    <button id="btn5" onclick="selectButton('btn5')">Chapter 5</button>
+    <div class="container">
+        <button id="btn1" class="selected" onclick="selectButton('btn1')">Chapter 1</button>
+        <button id="btn2" onclick="selectButton('btn2')">Chapter 2</button>
+        <button id="btn3" onclick="selectButton('btn3')">Chapter 3</button>
+        <button id="btn4" onclick="selectButton('btn4')">Chapter 4</button>
+        <button id="btn5" onclick="selectButton('btn5')">Chapter 5</button>
+    </div>
 
     <script>
         function selectButton(selectedId) {

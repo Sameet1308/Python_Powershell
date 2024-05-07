@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Responsive Chapter Selection</title>
+<title>Optimized Responsive Buttons</title>
 <style>
     body, html {
         height: 100%;
@@ -11,25 +11,26 @@
         display: flex;
         justify-content: center;
         align-items: center;
+        font-family: Arial, sans-serif; /* Ensures font consistency */
     }
     button {
-        height: 10vh; /* Sets button height as a percentage of the viewport height */
-        padding: 0 20px;
+        height: 8vh; /* Reduced from 10vh for more proportional appearance */
+        padding: 0 1vh; /* Smaller padding */
         margin: 5px;
         border: none;
-        border-bottom: 2px solid transparent; /* Prevents layout shift when border is added */
+        border-bottom: 3px solid transparent; /* 3px solid border for more emphasis */
         background-color: transparent;
         color: black;
         outline: none;
         transition: color 0.3s, border-bottom 0.3s;
-        font-size: 2vh; /* Sets font size as a percentage of the viewport height */
+        font-size: 2vh; /* Reduced font size for better proportion */
     }
     button:hover {
         color: red;
     }
     .selected {
         color: red;
-        border-bottom: 2px solid red;
+        border-bottom: 3px solid red;
     }
 </style>
 </head>

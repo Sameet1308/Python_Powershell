@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Linkable Chapter Buttons</title>
+<title>Compact Chapter Buttons</title>
 <style>
     body, html {
         height: 100%;
@@ -17,8 +17,8 @@
         text-decoration: none; /* Removes default hyperlink underline */
     }
     button {
-        height: 8vh;
-        padding: 0 1vh;
+        height: 6vh; /* Decreased height for a tighter fit */
+        padding: 0 0.5vh; /* Reduced horizontal padding */
         margin: 5px;
         border: none;
         border-bottom: 3px solid transparent;
@@ -26,7 +26,7 @@
         color: black;
         outline: none;
         transition: color 0.3s, border-bottom 0.3s;
-        font-size: 2vh;
+        font-size: 1.8vh; /* Slightly smaller font size for proportion */
     }
     button:hover {
         color: red;

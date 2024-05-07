@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Button Selection</title>
+<style>
+    button {
+        font-size: 16px;
+        padding: 10px;
+        margin: 5px;
+        border: none;
+        background-color: transparent;
+        color: black;
+        outline: none;
+    }
+    .selected {
+        color: red;
+        text-decoration: underline red;
+    }
+</style>
+</head>
+<body>
+    <button id="btn1" onclick="selectButton('btn1')">Button 1</button>
+    <button id="btn2" onclick="selectButton('btn2')">Button 2</button>
+    <button id="btn3" onclick="selectButton('btn3')">Button 3</button>
+    <button id="btn4" onclick="selectButton('btn4')">Button 4</button>
+    <button id="btn5" onclick="selectButton('btn5')">Button 5</button>
+
+    <script>
+        function selectButton(selectedId) {
+            // Remove the selected class from all buttons
+            document.querySelectorAll('button').forEach(button => {
+                button.classList.remove('selected');
+            });
+
+            // Add the selected class to the clicked button
+            document.getElementById(selectedId).classList.add('selected');
+        }
+    </script>
+</body>
+</html>

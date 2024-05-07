@@ -13,15 +13,19 @@
         background-color: transparent;
         color: black;
         outline: none;
+        transition: color 0.3s, border 0.3s;
+    }
+    button:hover {
+        color: red;
     }
     .selected {
         color: red;
-        text-decoration: underline red;
+        border: 2px solid red;
     }
 </style>
 </head>
 <body>
-    <button id="btn1" onclick="selectButton('btn1')">Button 1</button>
+    <button id="btn1" class="selected" onclick="selectButton('btn1')">Button 1</button>
     <button id="btn2" onclick="selectButton('btn2')">Button 2</button>
     <button id="btn3" onclick="selectButton('btn3')">Button 3</button>
     <button id="btn4" onclick="selectButton('btn4')">Button 4</button>

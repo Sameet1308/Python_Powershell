@@ -3,62 +3,76 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Chapter Navigation Layout</title>
 <style>
-  .panel-container {
-    margin-top: 10px;
-  }
-
-  .panel {
-    padding: 10px;
-    margin: 5px;
-    border: 1px solid #ccc;
-  }
-
-  .panel.selected {
-    color: red;
-    border-bottom: 3px solid red;
-  }
-
-  .panel a {
-    text-decoration: none;
-  }
+    body, html {
+        margin: 0;
+        padding: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        font-family: Arial, sans-serif;
+        height: 100%;
+    }
+    .chapters-container {
+        display: flex; /* Aligns chapters horizontally */
+    }
+    .chapter-button {
+        margin: 5px;
+        padding: 5px 10px;
+        border: 3px solid transparent;
+        background-color: transparent;
+        font-size: 16px;
+        cursor: pointer;
+    }
+    .chapter-button.selected, .chapter-button:hover {
+        color: red;
+        border-bottom: 3px solid red;
+    }
+    .pages-container {
+        display: none; /* Initially hides the pages container */
+        flex-direction: row; /* Aligns pages horizontally */
+        margin-top: 10px;
+    }
+    .page-button {
+        margin: 5px;
+        padding: 5px 10px;
+        border: none;
+        background-color: lightgray;
+        cursor: pointer;
+    }
 </style>
-<title>Nested Panels</title>
 </head>
 <body>
-  <div class="container">
-    <div class="chapter-container">
-      <h2>Chapter 1</h2>
-      <div class="panel-container">
-        <a href="#" class="panel selected">Page 1</a>
-        <a href="#" class="panel">Page 2</a>
-        <a href="#" class="panel">Page 3</a>
-        <a href="#" class="panel">Page 4</a>
-      </div>
+    <div class="chapters-container">
+        <div class="chapter-button" onclick="togglePages('chapter1', this)">Chapter 1</div>
+        <div class="chapter-button" onclick="togglePages('chapter2', this)">Chapter 2</div>
+    </div>
+    <div id="chapter1" class="pages-container">
+        <a href="https://example.com/chapter1/page1"><div class="page-button">Page 1</div></a>
+        <a href="https://example.com/chapter1/page2"><div class="page-button">Page 2</div></a>
+        <a href="https://example.com/chapter1/page3"><div class="page-button">Page 3</div></a>
+    </div>
+    <div id="chapter2" class="pages-container">
+        <a href="https://example.com/chapter2/page1"><div class="page-button">Page 1</div></a>
+        <a href="https://example.com/chapter2/page2"><div class="page-button">Page 2</div></a>
+        <a href="https://example.com/chapter2/page3"><div class="page-button">Page 3</div></a>
     </div>
 
-    <div class="chapter-container">
-      <h2>Chapter 2</h2>
-      <div class="panel-container">
-        <a href="#" class="panel">Page 1</a>
-        <a href="#" class="panel">Page 2</a>
-        <a href="#" class="panel">Page 3</a>
-        <a href="#" class="panel">Page 4</a>
-      </div>
-    </div>
-  </div>
+    <script>
+        function togglePages(chapterId, element) {
+            // Remove 'selected' class from all chapters and hide all pages
+            document.querySelectorAll('.chapter-button').forEach(btn => {
+                btn.classList.remove('selected');
+            });
+            document.querySelectorAll('.pages-container').forEach(div => {
+                div.style.display = 'none';
+            });
 
-  <script>
-  // Add click event listener to panels
-  const panels = document.querySelectorAll('.panel');
-  panels.forEach(panel => {
-    panel.addEventListener('click', function() {
-      // Remove selected class from all panels
-      panels.forEach(p => p.classList.remove('selected'));
-      // Add selected class to clicked panel
-      this.classList.add('selected');
-    });
-  });
-  </script>
+            // Add 'selected' class to the clicked chapter and show its pages
+            element.classList.add('selected');
+            document.getElementById(chapterId).style.display = 'flex';
+        }
+    </script>
 </body>
 </html>

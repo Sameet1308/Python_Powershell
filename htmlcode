@@ -5,6 +5,13 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Chapter Navigation with Links</title>
 <style>
+    @font-face {
+        font-family: 'Batterson Sans';
+        src: url('path/to/BattersonSans-Regular.woff2') format('woff2'),
+             url('path/to/BattersonSans-Regular.woff') format('woff');
+        font-weight: normal;
+        font-style: normal;
+    }
     body {
         margin: 0;
         padding: 0;
@@ -12,21 +19,21 @@
         align-items: center;
         justify-content: center;
         height: 100vh; /* Full viewport height */
-        font-family: Arial, sans-serif;
+        font-family: 'Batterson Sans', Arial, sans-serif;
         background-color: #f0f0f0;
     }
     .chapter-container {
         display: flex; /* Aligns chapters horizontally */
     }
     .chapter {
-        padding: 0 20px; /* Reduced vertical padding to 0 */
+        padding: 0 20px; /* Minimal vertical padding, adequate horizontal padding */
         margin: 5px;
         font-size: 18px;
-        color: black; /* Default text color */
-        border: none; /* No border by default */
+        color: black; /* Default text color set to black */
         background-color: transparent;
+        border: none; /* No border by default */
+        text-decoration: none; /* No underline for links */
         cursor: pointer;
-        text-decoration: none; /* Remove underline from links */
     }
     .chapter.selected {
         color: red; /* Red text for the selected chapter */
@@ -46,13 +53,12 @@
     <script>
         document.querySelectorAll('.chapter').forEach(chapter => {
             chapter.onclick = function(event) {
-                event.preventDefault(); // Prevent default link navigation to allow styling change before navigation
+                event.preventDefault(); // Prevent default link navigation
                 document.querySelectorAll('.chapter').forEach(c => c.classList.remove('selected'));
                 this.classList.add('selected');
-                // Navigate to the URL after a slight delay to show the selection effect
                 setTimeout(() => {
                     window.location.href = this.href;
-                }, 300);
+                }, 300); // Navigate after a brief delay to show selection
             };
         });
     </script>

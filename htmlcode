@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Hierarchical Button Layout</title>
+<title>Horizontal Hierarchical Button Layout</title>
 <style>
     body, html {
         height: 100%;
@@ -15,12 +15,13 @@
     }
     .chapter {
         margin: 10px;
-        padding: 5px;
+        display: flex;
+        align-items: center; /* Aligns chapters horizontally */
     }
     button {
         height: 6vh;
         padding: 0 0.5vh;
-        margin: 5px 0; /* Space between chapter and page buttons */
+        margin: 0 5px; /* Spacing between buttons */
         border: none;
         border-bottom: 3px solid transparent;
         background-color: transparent;
@@ -37,7 +38,8 @@
     }
     .page-buttons {
         display: none; /* Initially hide page buttons */
-        flex-direction: column;
+        flex-direction: row; /* Aligns page buttons horizontally */
+        padding-left: 20px;
     }
     .chapter:hover .page-buttons, .chapter.selected .page-buttons {
         display: flex; /* Show page buttons when chapter is hovered or selected */

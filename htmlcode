@@ -3,97 +3,58 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Chapter and Page Panel Selector</title>
+<title>Chapter Navigation with Links</title>
 <style>
-    body, html {
+    body {
         margin: 0;
         padding: 0;
         display: flex;
-        flex-direction: column;
         align-items: center;
-        font-family: Arial, sans-serif;
-        height: 100%;
-    }
-    .chapters-container {
-        display: flex; /* Aligns chapters horizontally */
-        background-color: #f0f0f0;
-        padding: 10px 0;
-    }
-    .chapter-button {
-        margin: 5px 10px;
-        padding: 10px 20px;
-        border: 2px solid transparent;
-        background-color: #e0e0e0;
-        font-size: 18px;
-        cursor: pointer;
-        transition: border-color 0.3s, color 0.3s;
-    }
-    .chapter-button.selected, .chapter-button:hover {
-        color: red;
-        border-bottom: 3px solid red;
-    }
-    .pages-container {
-        display: none; /* Initially hides the pages container */
-        flex-direction: row; /* Aligns pages horizontally */
         justify-content: center;
-        margin-top: 5px;
+        height: 100vh; /* Full viewport height */
+        font-family: Arial, sans-serif;
+        background-color: #f0f0f0;
     }
-    .page-button {
+    .chapter-container {
+        display: flex; /* Aligns chapters horizontally */
+    }
+    .chapter {
+        padding: 0 20px; /* Reduced vertical padding to 0 */
         margin: 5px;
-        padding: 5px 10px;
-        border: 1px solid gray;
-        background-color: #ffffff;
+        font-size: 18px;
+        color: black; /* Default text color */
+        border: none; /* No border by default */
+        background-color: transparent;
         cursor: pointer;
-        transition: color 0.3s, border-bottom 0.3s;
+        text-decoration: none; /* Remove underline from links */
     }
-    .page-button.selected, .page-button:hover {
-        color: red;
-        border-bottom: 3px solid red;
+    .chapter.selected {
+        color: red; /* Red text for the selected chapter */
+        border-bottom: 3px solid red; /* Red bottom border for the selected chapter */
     }
 </style>
 </head>
 <body>
-    <div class="chapters-container">
-        <div class="chapter-button" onclick="togglePages('chapter1', this)">Chapter 1</div>
-        <div class="chapter-button" onclick="togglePages('chapter2', this)">Chapter 2</div>
-    </div>
-    <div id="chapter1" class="pages-container">
-        <a href="https://example.com/chapter1/page1"><div class="page-button" onclick="selectPage(this)">Page 1</div></a>
-        <a href="https://example.com/chapter1/page2"><div class="page-button" onclick="selectPage(this)">Page 2</div></a>
-        <a href="https://example.com/chapter1/page3"><div class="page-button" onclick="selectPage(this)">Page 3</div></a>
-        <a href="https://example.com/chapter1/page4"><div class="page-button" onclick="selectPage(this)">Page 4</div></a>
-    </div>
-    <div id="chapter2" class="pages-container">
-        <a href="https://example.com/chapter2/page1"><div class="page-button" onclick="selectPage(this)">Page 1</div></a>
-        <a href="https://example.com/chapter2/page2"><div class="page-button" onclick="selectPage(this)">Page 2</div></a>
-        <a href="https://example.com/chapter2/page3"><div class="page-button" onclick="selectPage(this)">Page 3</div></a>
-        <a href="https://example.com/chapter2/page4"><div class="page-button" onclick="selectPage(this)">Page 4</div></a>
+    <div class="chapter-container">
+        <a href="https://example.com/chapter1" class="chapter selected">Chapter 1</a>
+        <a href="https://example.com/chapter2" class="chapter">Chapter 2</a>
+        <a href="https://example.com/chapter3" class="chapter">Chapter 3</a>
+        <a href="https://example.com/chapter4" class="chapter">Chapter 4</a>
+        <a href="https://example.com/chapter5" class="chapter">Chapter 5</a>
     </div>
 
     <script>
-        function togglePages(chapterId, element) {
-            // Remove 'selected' class from all chapter buttons
-            document.querySelectorAll('.chapter-button').forEach(btn => {
-                btn.classList.remove('selected');
-            });
-            element.classList.add('selected');
-
-            // Hide all pages containers
-            document.querySelectorAll('.pages-container').forEach(div => {
-                div.style.display = 'none';
-            });
-
-            // Show the corresponding pages container and clear previous page selections
-            const pagesContainer = document.getElementById(chapterId);
-            pagesContainer.style.display = 'flex';
-            pagesContainer.querySelectorAll('.page-button').forEach(page => {
-                page.classList.remove('selected');
-            });
-        }
-
-        function selectPage(pageElement) {
-            // Remove 'selected' class from all pages in the current container
-            pageElement.closest('.pages-container').querySelectorAll('.page-button').forEach(page => {
-                page.classList.remove('selected');
-            });
-            //
+        document.querySelectorAll('.chapter').forEach(chapter => {
+            chapter.onclick = function(event) {
+                event.preventDefault(); // Prevent default link navigation to allow styling change before navigation
+                document.querySelectorAll('.chapter').forEach(c => c.classList.remove('selected'));
+                this.classList.add('selected');
+                // Navigate to the URL after a slight delay to show the selection effect
+                setTimeout(() => {
+                    window.location.href = this.href;
+                }, 300);
+            };
+        });
+    </script>
+</body>
+</html>

@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Chapter Navigation Layout</title>
+<title>Chapter Panel Navigation</title>
 <style>
     body, html {
         margin: 0;
@@ -16,29 +16,32 @@
     }
     .chapters-container {
         display: flex; /* Aligns chapters horizontally */
+        background-color: #f0f0f0;
+        padding: 10px 0;
     }
     .chapter-button {
-        margin: 5px;
-        padding: 5px 10px;
-        border: 3px solid transparent;
-        background-color: transparent;
-        font-size: 16px;
+        margin: 5px 10px;
+        padding: 10px 20px;
+        border: 2px solid transparent;
+        background-color: #e0e0e0;
+        font-size: 18px;
         cursor: pointer;
     }
     .chapter-button.selected, .chapter-button:hover {
         color: red;
-        border-bottom: 3px solid red;
+        border-color: red;
     }
     .pages-container {
         display: none; /* Initially hides the pages container */
         flex-direction: row; /* Aligns pages horizontally */
-        margin-top: 10px;
+        justify-content: center;
+        margin-top: 5px;
     }
     .page-button {
         margin: 5px;
         padding: 5px 10px;
-        border: none;
-        background-color: lightgray;
+        border: 1px solid gray;
+        background-color: #ffffff;
         cursor: pointer;
     }
 </style>
@@ -61,16 +64,18 @@
 
     <script>
         function togglePages(chapterId, element) {
-            // Remove 'selected' class from all chapters and hide all pages
+            // Remove 'selected' class from all chapter buttons
             document.querySelectorAll('.chapter-button').forEach(btn => {
                 btn.classList.remove('selected');
             });
+            // Hide all pages containers
             document.querySelectorAll('.pages-container').forEach(div => {
                 div.style.display = 'none';
             });
 
-            // Add 'selected' class to the clicked chapter and show its pages
+            // Add 'selected' class to the clicked chapter button
             element.classList.add('selected');
+            // Show the corresponding pages container
             document.getElementById(chapterId).style.display = 'flex';
         }
     </script>

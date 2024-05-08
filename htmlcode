@@ -3,92 +3,65 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Interactive Chapter and Page Navigation</title>
 <style>
-    body, html {
-        height: 100%;
-        margin: 0;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        font-family: Arial, sans-serif;
-    }
-    .chapters-container {
-        display: flex;
-        flex-direction: row; /* Align chapters horizontally */
-        justify-content: center;
-        margin-top: 20px;
-    }
-    .chapter {
-        margin: 0 10px;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-    }
-    button {
-        height: 6vh;
-        padding: 0 0.5vh;
-        margin: 5px;
-        border: none;
-        border-bottom: 3px solid transparent;
-        background-color: transparent;
-        color: black;
-        outline: none;
-        transition: color 0.3s, border-bottom 0.3s;
-        font-size: 1.8vh;
-        display: flex;
-        align-items: start;
-    }
-    button:hover, .selected {
-        color: red;
-        border-bottom: 3px solid red;
-    }
-    .page-buttons {
-        display: none;
-        flex-direction: row; /* Align page buttons horizontally */
-        padding-left: 20px;
-    }
-    .chapter.selected .page-buttons {
-        display: flex;
-    }
+  .chapter-container {
+    display: flex;
+  }
+
+  .panel-container {
+    display: flex;
+    margin-top: 10px;
+  }
+
+  .panel {
+    padding: 10px;
+    margin: 5px;
+    border: 1px solid #ccc;
+  }
+
+  .panel.selected {
+    color: red;
+    border-bottom: 3px solid red;
+  }
+
+  .panel a {
+    text-decoration: none;
+  }
 </style>
+<title>Nested Panels</title>
 </head>
 <body>
-    <div class="chapters-container">
-        <div class="chapter">
-            <button onclick="toggleChapter('chapter1', this)">Chapter 1</button>
-            <div class="page-buttons" id="chapter1">
-                <a href="https://example.com/chapter1/page1"><button>Page 1</button></a>
-                <a href="https://example.com/chapter1/page2"><button>Page 2</button></a>
-                <a href="https://example.com/chapter1/page3"><button>Page 3</button></a>
-            </div>
-        </div>
-        <div class="chapter">
-            <button onclick="toggleChapter('chapter2', this)">Chapter 2</button>
-            <div class="page-buttons" id="chapter2">
-                <a href="https://example.com/chapter2/page1"><button>Page 1</button></a>
-                <a href="https://example.com/chapter2/page2"><button>Page 2</button></a>
-                <a href="https://example.com/chapter2/page3"><button>Page 3</button></a>
-            </div>
-        </div>
-        <!-- Additional chapters can be added similarly -->
+  <div class="chapter-container">
+    <h2>Chapter 1</h2>
+    <div class="panel-container">
+      <a href="#" class="panel selected">Page 1</a>
+      <a href="#" class="panel">Page 2</a>
+      <a href="#" class="panel">Page 3</a>
+      <a href="#" class="panel">Page 4</a>
     </div>
+  </div>
 
-    <script>
-        function toggleChapter(chapterId, chapterButton) {
-            // Toggle 'selected' class for chapters
-            document.querySelectorAll('.chapter button').forEach(btn => {
-                btn.classList.remove('selected');
-            });
-            chapterButton.classList.add('selected');
+  <div class="chapter-container">
+    <h2>Chapter 2</h2>
+    <div class="panel-container">
+      <a href="#" class="panel">Page 1</a>
+      <a href="#" class="panel">Page 2</a>
+      <a href="#" class="panel">Page 3</a>
+      <a href="#" class="panel">Page 4</a>
+    </div>
+  </div>
 
-            // Manage visibility of page buttons
-            document.querySelectorAll('.page-buttons').forEach(div => {
-                div.style.display = 'none';
-            });
-            var pages = document.getElementById(chapterId);
-            pages.style.display = 'flex'; // Ensure the page buttons are visible and remain so
-        }
-    </script>
+  <script>
+  // Add click event listener to panels
+  const panels = document.querySelectorAll('.panel');
+  panels.forEach(panel => {
+    panel.addEventListener('click', function() {
+      // Remove selected class from all panels
+      panels.forEach(p => p.classList.remove('selected'));
+      // Add selected class to clicked panel
+      this.classList.add('selected');
+    });
+  });
+  </script>
 </body>
 </html>

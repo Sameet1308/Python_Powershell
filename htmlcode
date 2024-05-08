@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Interactive Chapter and Page Selection</title>
+<title>Interactive Chapter and Page Navigation</title>
 <style>
     body, html {
         height: 100%;
@@ -13,15 +13,22 @@
         align-items: center;
         font-family: Arial, sans-serif;
     }
-    .chapter {
-        margin: 10px;
+    .chapters-container {
         display: flex;
+        flex-direction: row; /* Align chapters horizontally */
+        justify-content: center;
+        margin-top: 20px;
+    }
+    .chapter {
+        margin: 0 10px;
+        display: flex;
+        flex-direction: column;
         align-items: center;
     }
     button {
         height: 6vh;
         padding: 0 0.5vh;
-        margin: 0 5px; /* Spacing between buttons */
+        margin: 5px;
         border: none;
         border-bottom: 3px solid transparent;
         background-color: transparent;
@@ -37,56 +44,50 @@
         border-bottom: 3px solid red;
     }
     .page-buttons {
-        display: none; /* Initially hide page buttons */
-        flex-direction: row; /* Aligns page buttons horizontally */
+        display: none;
+        flex-direction: row; /* Align page buttons horizontally */
         padding-left: 20px;
     }
     .chapter.selected .page-buttons {
-        display: flex; /* Show page buttons when chapter is selected */
+        display: flex;
     }
 </style>
 </head>
 <body>
-    <div class="chapter">
-        <button onclick="toggleChapter('chapter1', this)">Chapter 1</button>
-        <div class="page-buttons" id="chapter1">
-            <a href="https://example.com/chapter1/page1"><button>Page 1</button></a>
-            <a href="https://example.com/chapter1/page2"><button>Page 2</button></a>
-            <a href="https://example.com/chapter1/page3"><button>Page 3</button></a>
+    <div class="chapters-container">
+        <div class="chapter">
+            <button onclick="toggleChapter('chapter1', this)">Chapter 1</button>
+            <div class="page-buttons" id="chapter1">
+                <a href="https://example.com/chapter1/page1"><button>Page 1</button></a>
+                <a href="https://example.com/chapter1/page2"><button>Page 2</button></a>
+                <a href="https://example.com/chapter1/page3"><button>Page 3</button></a>
+            </div>
         </div>
-    </div>
-    <div class="chapter">
-        <button onclick="toggleChapter('chapter2', this)">Chapter 2</button>
-        <div class="page-buttons" id="chapter2">
-            <a href="https://example.com/chapter2/page1"><button>Page 1</button></a>
-            <a href="https://example.com/chapter2/page2"><button>Page 2</button></a>
-            <a href="https://example.com/chapter2/page3"><button>Page 3</button></a>
+        <div class="chapter">
+            <button onclick="toggleChapter('chapter2', this)">Chapter 2</button>
+            <div class="page-buttons" id="chapter2">
+                <a href="https://example.com/chapter2/page1"><button>Page 1</button></a>
+                <a href="https://example.com/chapter2/page2"><button>Page 2</button></a>
+                <a href="https://example.com/chapter2/page3"><button>Page 3</button></a>
+            </div>
         </div>
+        <!-- Additional chapters can be added similarly -->
     </div>
-    <!-- Repeat for other chapters as necessary -->
 
     <script>
         function toggleChapter(chapterId, chapterButton) {
-            // Remove 'selected' class from all chapters
+            // Toggle 'selected' class for chapters
             document.querySelectorAll('.chapter button').forEach(btn => {
                 btn.classList.remove('selected');
             });
-            // Add 'selected' class to the clicked chapter button
             chapterButton.classList.add('selected');
 
-            // Hide all page buttons
+            // Manage visibility of page buttons
             document.querySelectorAll('.page-buttons').forEach(div => {
                 div.style.display = 'none';
             });
-            // Show page buttons for the selected chapter
             var pages = document.getElementById(chapterId);
-            pages.style.display = 'flex';
-
-            // Optionally highlight a default page
-            var firstPageButton = pages.querySelector('button');
-            if(firstPageButton) {
-                firstPageButton.classList.add('selected');
-            }
+            pages.style.display = 'flex'; // Ensure the page buttons are visible and remain so
         }
     </script>
 </body>

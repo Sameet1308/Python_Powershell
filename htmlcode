@@ -3,61 +3,75 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Compact Chapter Buttons</title>
+<title>Hierarchical Button Layout</title>
 <style>
     body, html {
         height: 100%;
         margin: 0;
         display: flex;
-        justify-content: center;
+        flex-direction: column;
         align-items: center;
         font-family: Arial, sans-serif;
     }
-    a {
-        text-decoration: none; /* Removes default hyperlink underline */
+    .chapter {
+        margin: 10px;
+        padding: 5px;
     }
     button {
-        height: 6vh; /* Decreased height for a tighter fit */
-        padding: 0 0.5vh; /* Reduced horizontal padding */
-        margin: 5px;
+        height: 6vh;
+        padding: 0 0.5vh;
+        margin: 5px 0; /* Space between chapter and page buttons */
         border: none;
         border-bottom: 3px solid transparent;
         background-color: transparent;
         color: black;
         outline: none;
         transition: color 0.3s, border-bottom 0.3s;
-        font-size: 1.8vh; /* Slightly smaller font size for proportion */
+        font-size: 1.8vh;
+        display: flex;
+        align-items: start;
     }
-    button:hover {
-        color: red;
-    }
-    .selected {
+    button:hover, button.selected {
         color: red;
         border-bottom: 3px solid red;
+    }
+    .page-buttons {
+        display: none; /* Initially hide page buttons */
+        flex-direction: column;
+    }
+    .chapter:hover .page-buttons, .chapter.selected .page-buttons {
+        display: flex; /* Show page buttons when chapter is hovered or selected */
     }
 </style>
 </head>
 <body>
-    <div class="container">
-        <a href="https://example.com/chapter1"><button id="btn1" class="selected" onclick="selectButton('btn1')">Chapter 1</button></a>
-        <a href="https://example.com/chapter2"><button id="btn2" onclick="selectButton('btn2')">Chapter 2</button></a>
-        <a href="https://example.com/chapter3"><button id="btn3" onclick="selectButton('btn3')">Chapter 3</button></a>
-        <a href="https://example.com/chapter4"><button id="btn4" onclick="selectButton('btn4')">Chapter 4</button></a>
-        <a href="https://example.com/chapter5"><button id="btn5" onclick="selectButton('btn5')">Chapter 5</button></a>
+    <div class="chapter">
+        <button onclick="toggleChapter('chapter1')">Chapter 1</button>
+        <div class="page-buttons" id="chapter1">
+            <a href="https://example.com/chapter1/page1"><button>Page 1</button></a>
+            <a href="https://example.com/chapter1/page2"><button>Page 2</button></a>
+            <a href="https://example.com/chapter1/page3"><button>Page 3</button></a>
+        </div>
     </div>
+    <div class="chapter">
+        <button onclick="toggleChapter('chapter2')">Chapter 2</button>
+        <div class="page-buttons" id="chapter2">
+            <a href="https://example.com/chapter2/page1"><button>Page 1</button></a>
+            <a href="https://example.com/chapter2/page2"><button>Page 2</button></a>
+            <a href="https://example.com/chapter2/page3"><button>Page 3</button></a>
+        </div>
+    </div>
+    <!-- Repeat for other chapters as necessary -->
 
     <script>
-        function selectButton(selectedId) {
-            // Prevents default link navigation
-            event.preventDefault();
-
-            // Remove the selected class from all buttons
-            document.querySelectorAll('button').forEach(button => {
-                button.classList.remove('selected');
-            });
-
-            // Add the selected class to the clicked button
-            document.getElementById(selectedId).classList.add('selected');
+        function toggleChapter(chapterId) {
+            // Toggle display of page buttons for the selected chapter
+            var pages = document.getElementById(chapterId);
+            if (pages.style.display === 'flex') {
+                pages.style.display = 'none';
+            } else {
+                pages.style.display = 'flex';
+            }
         }
     </script>
 </body>

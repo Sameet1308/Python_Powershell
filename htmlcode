@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Horizontal Hierarchical Button Layout</title>
+<title>Interactive Chapter and Page Selection</title>
 <style>
     body, html {
         height: 100%;
@@ -16,7 +16,7 @@
     .chapter {
         margin: 10px;
         display: flex;
-        align-items: center; /* Aligns chapters horizontally */
+        align-items: center;
     }
     button {
         height: 6vh;
@@ -32,7 +32,7 @@
         display: flex;
         align-items: start;
     }
-    button:hover, button.selected {
+    button:hover, .selected {
         color: red;
         border-bottom: 3px solid red;
     }
@@ -41,14 +41,14 @@
         flex-direction: row; /* Aligns page buttons horizontally */
         padding-left: 20px;
     }
-    .chapter:hover .page-buttons, .chapter.selected .page-buttons {
-        display: flex; /* Show page buttons when chapter is hovered or selected */
+    .chapter.selected .page-buttons {
+        display: flex; /* Show page buttons when chapter is selected */
     }
 </style>
 </head>
 <body>
     <div class="chapter">
-        <button onclick="toggleChapter('chapter1')">Chapter 1</button>
+        <button onclick="toggleChapter('chapter1', this)">Chapter 1</button>
         <div class="page-buttons" id="chapter1">
             <a href="https://example.com/chapter1/page1"><button>Page 1</button></a>
             <a href="https://example.com/chapter1/page2"><button>Page 2</button></a>
@@ -56,7 +56,7 @@
         </div>
     </div>
     <div class="chapter">
-        <button onclick="toggleChapter('chapter2')">Chapter 2</button>
+        <button onclick="toggleChapter('chapter2', this)">Chapter 2</button>
         <div class="page-buttons" id="chapter2">
             <a href="https://example.com/chapter2/page1"><button>Page 1</button></a>
             <a href="https://example.com/chapter2/page2"><button>Page 2</button></a>
@@ -66,13 +66,26 @@
     <!-- Repeat for other chapters as necessary -->
 
     <script>
-        function toggleChapter(chapterId) {
-            // Toggle display of page buttons for the selected chapter
+        function toggleChapter(chapterId, chapterButton) {
+            // Remove 'selected' class from all chapters
+            document.querySelectorAll('.chapter button').forEach(btn => {
+                btn.classList.remove('selected');
+            });
+            // Add 'selected' class to the clicked chapter button
+            chapterButton.classList.add('selected');
+
+            // Hide all page buttons
+            document.querySelectorAll('.page-buttons').forEach(div => {
+                div.style.display = 'none';
+            });
+            // Show page buttons for the selected chapter
             var pages = document.getElementById(chapterId);
-            if (pages.style.display === 'flex') {
-                pages.style.display = 'none';
-            } else {
-                pages.style.display = 'flex';
+            pages.style.display = 'flex';
+
+            // Optionally highlight a default page
+            var firstPageButton = pages.querySelector('button');
+            if(firstPageButton) {
+                firstPageButton.classList.add('selected');
             }
         }
     </script>

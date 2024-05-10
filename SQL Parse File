@@ -1,95 +1,36 @@
-import sys
-import sqlparse
-from sqlparse.sql import IdentifierList, Identifier
-from sqlparse.tokens import Keyword, DML
-
-# Function to check if the current token is a sub-select query
-def is_subselect(parsed):
-    """Determine if the parsed token is a subquery."""
-    if not parsed.is_group:
-        return False
-    for item in parsed.tokens:
-        if item.ttype is DML and item.value.upper() == 'SELECT':
-            return True
-    return False
-
-# Function to extract parts from the FROM clause of the SQL query
-def extract_from_part(parsed):
-    """Extract tokens from the 'FROM' part of the SQL query."""
-    from_seen = False
-    for item in parsed.tokens:
-        if from_seen:
-            if is_subselect(item):
-                # Recursively extract from nested sub-selects
-                for x in extract_from_part(item):
-                    yield x
-            elif item.ttype is Keyword and item.value.upper() in ['ORDER', 'GROUP BY', 'HAVING', 'WHERE']:
-                from_seen = False
-                StopIteration
-            else:
-                yield item
-        elif item.ttype is Keyword and item.value.upper() == 'FROM':
-            from_seen = True
-
-# Function to extract table identifiers from the token stream
-def extract_table_identifiers(token_stream):
-    """Extract table identifiers from the token stream."""
-    for item in token_stream:
-        if isinstance(item, IdentifierList):
-            for identifier in item.get_identifiers():
-                yield identifier.get_real_name()
-        elif isinstance(item, Identifier):
-            yield item.get_real_name()
-
-# Function to extract tables from SQL query
-def extract_tables(sql):
-    """Extract table names from the SQL query."""
-    stream = extract_from_part(sqlparse.parse(sql)[0])
-    return set(extract_table_identifiers(stream))
-
-# Function to extract column names from SELECT clauses
-def extract_select_columns(token):
-    """Extract column names from the SELECT part of the query."""
-    columns = []
-    for item in token.tokens:
-        if isinstance(item, IdentifierList):
-            for identifier in item.get_identifiers():
-                columns.append(identifier.get_real_name())
-        elif isinstance(item, Identifier):
-            columns.append(item.get_real_name())
-        elif item.ttype is Keyword and item.value.upper() in ['FROM', 'WHERE', 'GROUP BY', 'ORDER BY']:
-            break
-    return columns
-
-# Function to extract columns from SQL query
-def extract_columns(sql):
-    """Extract column names from the SQL query."""
-    parsed = sqlparse.parse(sql)[0]
-    select_seen = False
-    for item in parsed.tokens:
-        if select_seen:
-            if is_subselect(item):
-                # Recursively extract columns from nested sub-selects
-                yield from extract_columns(str(item))
-            else:
-                return extract_select_columns(item)
-        elif item.ttype is DML and item.value.upper() == 'SELECT':
-            select_seen = True
-
-# Main execution block to allow command line usage
-if __name__ == '__main__':
-    # Ensure that the script is called with an SQL query argument
-    if len(sys.argv) < 2:
-        print("Usage: python sql_parser.py '<sql_query>'")
-        sys.exit(1)
-    
-    # Read the SQL query from the first command line argument
-    sql_query = sys.argv[1]
-    # Extract tables using the utility function
-    tables = extract_tables(sql_query)
-    # Extract columns using the utility function
-    columns = list(extract_columns(sql_query))
-
-    # Print extracted tables and columns to the console
-    print("Tables:", tables)
-    print("Columns:", columns)
+SELECT
+    AgencyID,
+    CASE
+        WHEN Rank <= 9 THEN ReportingGroup
+        ELSE 'All Others'
+    END AS ReportingGroup,
+    SUM(TotalCYTD) AS TotalCYTD,
+    SUM(TotalPYTD) AS TotalPYTD,
+    CASE
+        WHEN Rank <= 9 THEN Rank
+        ELSE 10
+    END AS Rank
+FROM
+    (SELECT
+        AgencyID,
+        ReportingGroup,
+        SUM(CYTD) AS TotalCYTD,
+        SUM(PYTD) AS TotalPYTD,
+        RANK() OVER (PARTITION BY AgencyID ORDER BY SUM(CYTD) DESC) AS Rank
+    FROM
+        YourTableName
+    GROUP BY
+        AgencyID, ReportingGroup) AS RankedData
+GROUP BY
+    AgencyID,
+    CASE
+        WHEN Rank <= 9 THEN ReportingGroup
+        ELSE 'All Others'
+    END,
+    CASE
+        WHEN Rank <= 9 THEN Rank
+        ELSE 10
+    END
+ORDER BY
+    AgencyID,
+    Rank;

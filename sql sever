@@ -1,0 +1,25 @@
+SELECT 
+    req.session_id,
+    req.status,
+    req.command,
+    req.start_time,
+    req.wait_type,
+    req.wait_time,
+    req.last_wait_type,
+    req.total_elapsed_time,
+    req.cpu_time,
+    req.transaction_id,
+    txt.text AS query_text,
+    pln.query_plan
+FROM 
+    sys.dm_exec_requests AS req
+CROSS APPLY 
+    sys.dm_exec_sql_text(req.sql_handle) AS txt
+CROSS APPLY 
+    sys.dm_exec_query_plan(req.plan_handle) AS pln
+WHERE 
+    req.status NOT IN ('background', 'sleeping')
+AND 
+    req.session_id <> @@SPID -- Exclude current session
+ORDER BY 
+    req.total_elapsed_time DESC;

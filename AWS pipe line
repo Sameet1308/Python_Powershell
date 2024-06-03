@@ -1,39 +1,55 @@
-Implementation Guide: Excel File Import into MicroStrategy via AWS Pipeline
+import json
+import boto3
+import csv
+import io
 
-Content:
-Overview:
-This document outlines the implementation of a new process for importing Excel files into MicroStrategy. This method is designed in response to the restrictions on direct file access from NAS paths.
+s3 = boto3.client('s3')
+glue = boto3.client('glue')
 
-Objective:
-To establish a compliant and efficient mechanism for importing Excel files from NAS paths into MicroStrategy using AWS technology.
-
-Process Workflow:
-Source - NAS Path: Original storage location for Excel files.
-SIP Tool: Facilitates the transfer of files from NAS to AWS S3.
-AWS S3 Storage: Temporary holding area for the Excel files.
-AWS Lambda Activation: Triggered upon file upload to S3, initiating the subsequent process.
-Glue Crawler Execution: Processes the Excel file data in S3, updating the Glue tables.
-Glue Data Catalogue: Updated tables are made available for MicroStrategy analysis.
-Implementation Steps:
-Excel files are first placed in the designated NAS path.
-The SIP tool automatically transfers these files to the AWS S3 bucket.
-Upon file upload in S3, an AWS Lambda function is triggered.
-The Lambda function, equipped with a Python script, activates the Glue Crawler.
-The Glue Crawler reads the Excel file data, updating the Glue Data Catalogue accordingly.
-MicroStrategy accesses this data from the updated Glue Data Catalogue.
-Advantages:
-Adherence to administrative compliance regarding NAS path usage.
-Automated data transfer reducing manual handling.
-Scalability for handling large data volumes.
-Prompt availability of data for MicroStrategy use.
-Current Phase:
-The process is currently in the Proof of Concept (POC) phase, under active evaluation and optimization.
-Responsibilities:
-Ensure proper placement and formatting of Excel files in the NAS path.
-Regularly monitor the AWS S3 bucket and Lambda function for efficient operation.
-Validate the updates in the Glue Crawler and Data Catalogue.
-Future Directions:
-Complete and assess the POC.
-Incorporate improvements based on POC results.
-Expand the usage of this process following successful POC validation.
-Contact Information:
+def lambda_handler(event, context):
+    # Extract bucket name and file key from the event
+    bucket = event['Records'][0]['s3']['bucket']['name']
+    key = event['Records'][0]['s3']['object']['key']
+    
+    # Get the CSV file from S3
+    response = s3.get_object(Bucket=bucket, Key=key)
+    content = response['Body'].read().decode('utf-8')
+    
+    # Infer schema from the CSV file
+    csv_reader = csv.DictReader(io.StringIO(content))
+    columns = csv_reader.fieldnames
+    
+    # Define Glue table columns based on CSV headers
+    glue_columns = []
+    for col in columns:
+        glue_columns.append({'Name': col, 'Type': 'string'})
+    
+    # Create Glue table
+    table_name = key.split('/')[-1].replace('.csv', '')  # Use the file name as table name
+    database_name = 'your_glue_database'  # Replace with your Glue database name
+    
+    glue.create_table(
+        DatabaseName=database_name,
+        TableInput={
+            'Name': table_name,
+            'StorageDescriptor': {
+                'Columns': glue_columns,
+                'Location': f's3://{bucket}/{key}',
+                'InputFormat': 'org.apache.hadoop.mapred.TextInputFormat',
+                'OutputFormat': 'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat',
+                'Compressed': False,
+                'SerdeInfo': {
+                    'SerializationLibrary': 'org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe',
+                    'Parameters': {
+                        'field.delim': ','
+                    }
+                }
+            },
+            'TableType': 'EXTERNAL_TABLE'
+        }
+    )
+    
+    return {
+        'statusCode': 200,
+        'body': json.dumps('Glue table created successfully!')
+    }

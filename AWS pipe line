@@ -1,60 +1,61 @@
-import json
 import boto3
-import csv
-import io
+import json
 
-s3 = boto3.client('s3')
-glue = boto3.client('glue')
+def assume_role(role_arn, session_name):
+    sts_client = boto3.client('sts')
+    response = sts_client.assume_role(
+        RoleArn=role_arn,
+        RoleSessionName=session_name
+    )
+    return response['Credentials']
 
-def lambda_handler(event, context):
-    try:
-        # Extract bucket name and file key from the event
-        bucket = event['Records'][0]['s3']['bucket']['name']
-        key = event['Records'][0]['s3']['object']['key']
-        
-        # Get the CSV file from S3
-        response = s3.get_object(Bucket=bucket, Key=key)
-        content = response['Body'].read().decode('utf-8')
-        
-        # Infer schema from the CSV file
-        csv_reader = csv.DictReader(io.StringIO(content))
-        columns = csv_reader.fieldnames
-        
-        # Define Glue table columns based on CSV headers
-        glue_columns = [{'Name': col, 'Type': 'string'} for col in columns]
-        
-        # Create Glue table
-        table_name = key.split('/')[-1].replace('.csv', '')  # Use the file name as table name
-        database_name = 'your_glue_database'  # Replace with your Glue database name
-        
-        glue.create_table(
-            DatabaseName=database_name,
-            TableInput={
-                'Name': table_name,
-                'StorageDescriptor': {
-                    'Columns': glue_columns,
-                    'Location': f's3://{bucket}/{key}',
-                    'InputFormat': 'org.apache.hadoop.mapred.TextInputFormat',
-                    'OutputFormat': 'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat',
-                    'Compressed': False,
-                    'SerdeInfo': {
-                        'SerializationLibrary': 'org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe',
-                        'Parameters': {
-                            'field.delim': ','
-                        }
-                    }
-                },
-                'TableType': 'EXTERNAL_TABLE'
-            }
-        )
-        
-        return {
-            'statusCode': 200,
-            'body': json.dumps('Glue table created successfully!')
-        }
-    except Exception as e:
-        print(e)
-        return {
-            'statusCode': 500,
-            'body': json.dumps('Error creating Glue table')
-        }
+def get_glue_client(credentials):
+    return boto3.client(
+        'glue',
+        aws_access_key_id=credentials['AccessKeyId'],
+        aws_secret_access_key=credentials['SecretAccessKey'],
+        aws_session_token=credentials['SessionToken']
+    )
+
+def copy_table_to_central(local_glue_client, central_glue_client, local_database_name, central_database_name, table_name):
+    table = local_glue_client.get_table(DatabaseName=local_database_name, Name=table_name)['Table']
+    table_input = {
+        'Name': table['Name'],
+        'Description': table.get('Description', ''),
+        'StorageDescriptor': table['StorageDescriptor'],
+        'PartitionKeys': table.get('PartitionKeys', []),
+        'TableType': table['TableType'],
+        'Parameters': table.get('Parameters', {})
+    }
+    central_glue_client.create_table(DatabaseName=central_database_name, TableInput=table_input)
+
+def handler(event, context):
+    # Local and central database names
+    local_database_name = 'your_local_database'  # Replace with your local database name
+    central_database_name = 'your_central_database'  # Replace with your central database name
+    
+    # Assume role ARN for central account
+    central_role_arn = 'arn:aws:iam::123456789012:role/CentralGlueRole'  # Replace with your central role ARN
+    session_name = 'CrossAccountGlueAccessSession'
+    
+    # Local Glue client
+    local_glue_client = boto3.client('glue')
+    
+    # Assume role to get credentials for central account
+    credentials = assume_role(central_role_arn, session_name)
+    
+    # Central Glue client with assumed role credentials
+    central_glue_client = get_glue_client(credentials)
+    
+    # List tables in the local database
+    tables = local_glue_client.get_tables(DatabaseName=local_database_name)['TableList']
+    
+    # Copy each table to the central Glue catalog
+    for table in tables:
+        table_name = table['Name']
+        copy_table_to_central(local_glue_client, central_glue_client, local_database_name, central_database_name, table_name)
+    
+    return {
+        'statusCode': 200,
+        'body': json.dumps('Tables copied successfully!')
+    }

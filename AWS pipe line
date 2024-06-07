@@ -14,29 +14,35 @@ def lambda_handler(event, context):
         tables = response['TableList']
 
         for table in tables:
-            table_definition = table.copy()
+            table_input = {
+                'Name': table['Name'],
+                'Description': table.get('Description'),
+                'Owner': table.get('Owner'),
+                'LastAccessTime': table.get('LastAccessTime'),
+                'LastAnalyzedTime': table.get('LastAnalyzedTime'),
+                'Retention': table.get('Retention'),
+                'StorageDescriptor': table['StorageDescriptor'],
+                'PartitionKeys': table.get('PartitionKeys'),
+                'ViewOriginalText': table.get('ViewOriginalText'),
+                'ViewExpandedText': table.get('ViewExpandedText'),
+                'TableType': table.get('TableType'),
+                'Parameters': table.get('Parameters'),
+                'TargetTable': table.get('TargetTable'),
+                'CreatedBy': table.get('CreatedBy'),
+                'IsRegisteredWithLakeFormation': table.get('IsRegisteredWithLakeFormation')
+            }
 
-            # Remove invalid parameters for TableInput
-            invalid_keys = [
-                'DatabaseName', 'CatalogId', 'CreateTime', 'UpdateTime',
-                'CreatedBy', 'IsRegisteredWithLakeFormation', 'VersionId',
-                'LastAccessTime', 'LastAnalyzedTime', 'CatalogVersion'
-            ]
-
-            for key in invalid_keys:
-                table_definition.pop(key, None)
-
-            # Set the target database name
-            table_definition['DatabaseName'] = target_database_name
+            # Remove any keys that are None
+            table_input = {k: v for k, v in table_input.items() if v is not None}
 
             # Debugging: Print table definition
-            print(f"Table definition for {table['Name']}: {json.dumps(table_definition, indent=2)}")
+            print(f"Table definition for {table['Name']}: {json.dumps(table_input, indent=2)}")
 
             # Create the table in the target Glue catalog
             try:
                 glue_client.create_table(
                     DatabaseName=target_database_name,
-                    TableInput=table_definition
+                    TableInput=table_input
                 )
                 print(f"Table {table['Name']} copied successfully.")
             except Exception as e:

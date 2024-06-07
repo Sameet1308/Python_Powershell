@@ -14,7 +14,7 @@ def lambda_handler(event, context):
         tables = response['TableList']
 
         for table in tables:
-            table_definition = table.copy()
+            table_definition = table['Table'].copy()
 
             # Remove invalid parameters for TableInput
             table_definition.pop('DatabaseName', None)
@@ -24,6 +24,8 @@ def lambda_handler(event, context):
             table_definition.pop('CreatedBy', None)
             table_definition.pop('IsRegisteredWithLakeFormation', None)
             table_definition.pop('VersionId', None)
+            table_definition.pop('LastAccessTime', None)
+            table_definition.pop('LastAnalyzedTime', None)
 
             # Set the target database name
             table_definition['DatabaseName'] = target_database_name

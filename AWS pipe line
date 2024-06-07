@@ -2,28 +2,48 @@ import boto3
 import json
 
 def lambda_handler(event, context):
-    # Define the name of the Glue database
-    database_name = 'your_database_name'  # Replace with your Glue database name
+    source_database_name = 'source_database'  # Replace with your source Glue database name
+    target_database_name = 'target_database'  # Replace with your target Glue database name
 
     # Initialize the Glue client
     glue_client = boto3.client('glue')
 
     try:
-        # Get the list of tables in the specified database
-        response = glue_client.get_tables(DatabaseName=database_name)
+        # Get the list of tables in the source database
+        response = glue_client.get_tables(DatabaseName=source_database_name)
         tables = response['TableList']
 
-        # Extract table names
-        table_names = [table['Name'] for table in tables]
+        for table in tables:
+            table_definition = table.copy()
 
-        # Return the list of table names
+            # Remove invalid parameters for TableInput
+            table_definition.pop('DatabaseName', None)
+            table_definition.pop('CatalogId', None)
+            table_definition.pop('CreateTime', None)
+            table_definition.pop('UpdateTime', None)
+            table_definition.pop('CreatedBy', None)
+            table_definition.pop('IsRegisteredWithLakeFormation', None)
+            table_definition.pop('VersionId', None)
+
+            # Set the target database name
+            table_definition['DatabaseName'] = target_database_name
+
+            # Create the table in the target Glue catalog
+            try:
+                glue_client.create_table(
+                    DatabaseName=target_database_name,
+                    TableInput=table_definition
+                )
+                print(f"Table {table['Name']} copied successfully.")
+            except Exception as e:
+                print(f"Error copying table {table['Name']}: {str(e)}")
+
         return {
             'statusCode': 200,
-            'body': json.dumps(table_names)
+            'body': json.dumps(f'All tables from {source_database_name} copied to {target_database_name}')
         }
 
     except Exception as e:
-        # Handle any errors that occur
         error_message = f"An error occurred: {str(e)}"
         print(error_message)
         return {

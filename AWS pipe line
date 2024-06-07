@@ -33,9 +33,7 @@ def lambda_handler(event, context):
                 'ViewExpandedText': table.get('ViewExpandedText'),
                 'TableType': table.get('TableType'),
                 'Parameters': table.get('Parameters'),
-                'TargetTable': table.get('TargetTable'),
-                'CreatedBy': table.get('CreatedBy'),
-                'IsRegisteredWithLakeFormation': table.get('IsRegisteredWithLakeFormation')
+                'TargetTable': table.get('TargetTable')
             }
 
             # Remove any keys that are None

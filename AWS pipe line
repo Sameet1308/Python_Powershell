@@ -1,5 +1,6 @@
 import boto3
 import json
+from datetime import datetime
 
 def lambda_handler(event, context):
     source_database_name = 'source_database'  # Replace with your source Glue database name
@@ -7,6 +8,11 @@ def lambda_handler(event, context):
 
     # Initialize the Glue client
     glue_client = boto3.client('glue')
+
+    def convert_datetime(obj):
+        if isinstance(obj, datetime):
+            return obj.isoformat()
+        raise TypeError("Type not serializable")
 
     try:
         # Get the list of tables in the source database
@@ -36,7 +42,7 @@ def lambda_handler(event, context):
             table_input = {k: v for k, v in table_input.items() if v is not None}
 
             # Debugging: Print table definition
-            print(f"Table definition for {table['Name']}: {json.dumps(table_input, indent=2)}")
+            print(f"Table definition for {table['Name']}: {json.dumps(table_input, indent=2, default=convert_datetime)}")
 
             # Create the table in the target Glue catalog
             try:

@@ -1,41 +1,50 @@
 import boto3
 import json
 
-def copy_table_to_central(local_glue_client, central_glue_client, local_database_name, central_database_name, table_name):
-    # Fetch table details from local Glue catalog
-    table = local_glue_client.get_table(DatabaseName=local_database_name, Name=table_name)['Table']
-    
-    # Prepare the table input for the central Glue catalog
-    table_input = {
-        'Name': table['Name'],
-        'Description': table.get('Description', ''),
-        'StorageDescriptor': table['StorageDescriptor'],
-        'PartitionKeys': table.get('PartitionKeys', []),
-        'TableType': table['TableType'],
-        'Parameters': table.get('Parameters', {})
-    }
-    
-    # Create the table in the central Glue catalog
-    central_glue_client.create_table(DatabaseName=central_database_name, TableInput=table_input)
+def lambda_handler(event, context):
+    try:
+        source_database_name = 'source_database_name'
+        target_database_name = 'target_database_name'
 
-def handler(event, context):
-    # Local and central database names (replace with your actual database names)
-    local_database_name = 'your_local_database'  # Replace with your local database name
-    central_database_name = 'your_central_database'  # Replace with your central database name
+        # Initialize the Glue client in the source account
+        source_glue_client = boto3.client('glue')
+
+        # Initialize the Glue client in the target account
+        target_glue_client = boto3.client('glue')
+
+        # Get the list of tables in the source database
+        response = source_glue_client.get_tables(DatabaseName=source_database_name)
+        tables = response['TableList']
+
+        for table in tables:
+            table_definition = table
+
+            # Modify the table definition to fit the target Glue catalog
+            table_definition['DatabaseName'] = target_database_name
+            table_definition.pop('CreateTime', None)
+            table_definition.pop('UpdateTime', None)
+            table_definition.pop('CreatedBy', None)
+            table_definition.pop('IsRegisteredWithLakeFormation', None)
+
+            # Create the table in the target Glue catalog
+            try:
+                target_glue_client.create_table(
+                    DatabaseName=target_database_name,
+                    TableInput=table_definition
+                )
+                print(f"Table {table['Name']} copied successfully.")
+            except Exception as e:
+                print(f"Error copying table {table['Name']}: {str(e)}")
+        
+        return {
+            'statusCode': 200,
+            'body': json.dumps(f'All tables from {source_database_name} copied to {target_database_name}')
+        }
     
-    # Initialize the Glue clients
-    local_glue_client = boto3.client('glue')
-    central_glue_client = boto3.client('glue')
-    
-    # List tables in the local database
-    tables = local_glue_client.get_tables(DatabaseName=local_database_name)['TableList']
-    
-    # Copy each table to the central Glue catalog
-    for table in tables:
-        table_name = table['Name']
-        copy_table_to_central(local_glue_client, central_glue_client, local_database_name, central_database_name, table_name)
-    
-    return {
-        'statusCode': 200,
-        'body': json.dumps('Tables copied successfully!')
-    }
+    except Exception as e:
+        error_message = f"An error occurred: {str(e)}"
+        print(error_message)
+        return {
+            'statusCode': 500,
+            'body': json.dumps(error_message)
+        }

@@ -14,21 +14,23 @@ def lambda_handler(event, context):
         tables = response['TableList']
 
         for table in tables:
-            table_definition = table['Table'].copy()
+            table_definition = table.copy()
 
             # Remove invalid parameters for TableInput
-            table_definition.pop('DatabaseName', None)
-            table_definition.pop('CatalogId', None)
-            table_definition.pop('CreateTime', None)
-            table_definition.pop('UpdateTime', None)
-            table_definition.pop('CreatedBy', None)
-            table_definition.pop('IsRegisteredWithLakeFormation', None)
-            table_definition.pop('VersionId', None)
-            table_definition.pop('LastAccessTime', None)
-            table_definition.pop('LastAnalyzedTime', None)
+            invalid_keys = [
+                'DatabaseName', 'CatalogId', 'CreateTime', 'UpdateTime',
+                'CreatedBy', 'IsRegisteredWithLakeFormation', 'VersionId',
+                'LastAccessTime', 'LastAnalyzedTime', 'CatalogVersion'
+            ]
+
+            for key in invalid_keys:
+                table_definition.pop(key, None)
 
             # Set the target database name
             table_definition['DatabaseName'] = target_database_name
+
+            # Debugging: Print table definition
+            print(f"Table definition for {table['Name']}: {json.dumps(table_definition, indent=2)}")
 
             # Create the table in the target Glue catalog
             try:

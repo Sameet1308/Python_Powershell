@@ -1,79 +1,18 @@
 import boto3
-import re
 
 def lambda_handler(event, context):
-    # Initialize Glue clients for local and central catalogs
-    glue_client = boto3.client('glue')
+    # Replace these placeholders with your target account ID and role name
+    TARGET_ACCOUNT_ID = "123456789012"
+    TARGET_ROLE_NAME = "glue-data-catalog-access-role"
 
-    # Define the local and central database names
-    local_database_name = 'your_local_glue_database'
-    central_database_name = 'your_central_glue_database'
+    # Create a boto3 Glue client session for the target account
+    session = boto3.Session(role_arn=f"arn:aws:iam::{TARGET_ACCOUNT_ID}:role/{TARGET_ROLE_NAME}")
+    glue_client = session.client("glue")
 
-    # List all tables in the local database
-    response = glue_client.get_tables(DatabaseName=local_database_name)
-    tables = response['TableList']
+    # Use a paginator to retrieve all tables in batches
+    paginator = glue_client.get_paginator("list_tables")
+    tables = []
+    for page in paginator.paginate():
+        tables.extend(page["TableList"])
 
-    for table in tables:
-        table_name = table['Name']
-        
-        # Fetch the table metadata
-        table_metadata = glue_client.get_table(DatabaseName=local_database_name, Name=table_name)
-        storage_descriptor = table_metadata['Table']['StorageDescriptor']
-
-        # Generate the CREATE TABLE DDL statement
-        ddl = f"CREATE TABLE {central_database_name}.{table_name} (\n"
-        column_definitions = []
-        for column in storage_descriptor['Columns']:
-            col_name = column['Name']
-            col_type = column['Type']
-            column_definitions.append(f"    {col_name} {col_type}")
-        
-        ddl += ",\n".join(column_definitions)
-        ddl += "\n)"
-
-        # Handle additional table properties if necessary
-        if 'Location' in storage_descriptor:
-            ddl += f"\nLOCATION '{storage_descriptor['Location']}'"
-        
-        if 'InputFormat' in storage_descriptor:
-            ddl += f"\nSTORED AS INPUTFORMAT '{storage_descriptor['InputFormat']}'"
-        
-        if 'OutputFormat' in storage_descriptor:
-            ddl += f"\nOUTPUTFORMAT '{storage_descriptor['OutputFormat']}'"
-        
-        if 'SerdeInfo' in storage_descriptor:
-            serde_info = storage_descriptor['SerdeInfo']
-            ddl += f"\nROW FORMAT SERDE '{serde_info['SerializationLibrary']}'"
-            if 'Parameters' in serde_info and serde_info['Parameters']:
-                serde_params = ', '.join([f"'{k}'='{v}'" for k, v in serde_info['Parameters'].items()])
-                ddl += f" WITH SERDEPROPERTIES ({serde_params})"
-        
-        if 'TableType' in table_metadata['Table']:
-            ddl += f"\nTBLPROPERTIES ('tableType'='{table_metadata['Table']['TableType']}')"
-
-        ddl += ";"
-
-        # Clean up the DDL for execution
-        ddl = re.sub(r'\s+', ' ', ddl).strip()
-
-        print(f"Creating table {table_name} in central database")
-        print(ddl)
-
-        # Execute the DDL statement in the central Glue catalog
-        try:
-            glue_client.create_table(
-                DatabaseName=central_database_name,
-                TableInput={
-                    'Name': table_name,
-                    'StorageDescriptor': storage_descriptor,
-                    'TableType': table_metadata['Table'].get('TableType', 'EXTERNAL_TABLE'),
-                    'Parameters': table_metadata['Table'].get('Parameters', {})
-                }
-            )
-        except glue_client.exceptions.AlreadyExistsException:
-            print(f"Table {table_name} already exists in central database")
-
-    return {
-        'statusCode': 200,
-        'body': 'Tables replicated successfully'
-    }
+    return {"tables": tables}

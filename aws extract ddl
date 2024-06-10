@@ -4,37 +4,35 @@ def lambda_handler(event, context):
     # Initialize a Glue client
     glue_client = boto3.client('glue')
 
-    # Define the database and table name
+    # Define the database name
     database_name = 'your_local_glue_database'
-    table_name = 'your_table_name'
 
-    # Get the table definition
-    response = glue_client.get_table(
-        DatabaseName=database_name,
-        Name=table_name
-    )
+    # List all tables in the database
+    response = glue_client.get_tables(DatabaseName=database_name)
+    tables = response['TableList']
 
-    table = response['Table']
-    columns = table['StorageDescriptor']['Columns']
-    table_name = table['Name']
+    ddls = []
 
-    # Construct the DDL statement
-    ddl = f"CREATE TABLE {database_name}.{table_name} (\n"
-    
-    column_definitions = []
-    for column in columns:
-        col_name = column['Name']
-        col_type = column['Type']
-        column_definitions.append(f"    {col_name} {col_type}")
-    
-    ddl += ",\n".join(column_definitions)
-    ddl += "\n);"
+    # Generate DDL for each table
+    for table in tables:
+        table_name = table['Name']
+        columns = table['StorageDescriptor']['Columns']
 
-    # Print the DDL statement
-    print(ddl)
+        ddl = f"CREATE TABLE {database_name}.{table_name} (\n"
+        column_definitions = []
+        for column in columns:
+            col_name = column['Name']
+            col_type = column['Type']
+            column_definitions.append(f"    {col_name} {col_type}")
+        
+        ddl += ",\n".join(column_definitions)
+        ddl += "\n);"
 
-    # Return the DDL statement if needed for further processing
+        ddls.append(ddl)
+        print(ddl)
+
+    # Return the DDL statements if needed for further processing
     return {
         'statusCode': 200,
-        'body': ddl
+        'body': "\n\n".join(ddls)
     }

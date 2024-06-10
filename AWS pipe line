@@ -5,8 +5,9 @@ from datetime import datetime
 def lambda_handler(event, context):
     source_database_name = 'source_database'  # Replace with your source Glue database name
     target_database_name = 'target_database'  # Replace with your target Glue database name
+    target_account_id = 'TARGET_ACCOUNT_ID'  # Replace with your target AWS account ID
 
-    # Initialize the Glue client
+    # Initialize the Glue client in the source account
     glue_client = boto3.client('glue')
 
     def convert_datetime(obj):
@@ -42,9 +43,18 @@ def lambda_handler(event, context):
             # Debugging: Print table definition
             print(f"Table definition for {table['Name']}: {json.dumps(table_input, indent=2, default=convert_datetime)}")
 
+            # Modify the ARN to target the correct account if necessary
+            if 'StorageDescriptor' in table_input and 'Location' in table_input['StorageDescriptor']:
+                original_location = table_input['StorageDescriptor']['Location']
+                updated_location = original_location.replace('SOURCE_ACCOUNT_ID', target_account_id)
+                table_input['StorageDescriptor']['Location'] = updated_location
+
+            # Initialize the Glue client in the target account using the same role
+            target_glue_client = boto3.client('glue')
+
             # Create the table in the target Glue catalog
             try:
-                glue_client.create_table(
+                target_glue_client.create_table(
                     DatabaseName=target_database_name,
                     TableInput=table_input
                 )

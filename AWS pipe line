@@ -5,9 +5,8 @@ from datetime import datetime
 def lambda_handler(event, context):
     source_database_name = 'source_database'  # Replace with your source Glue database name
     target_database_name = 'target_database'  # Replace with your target Glue database name
-    target_role_arn = 'arn:aws:iam::TARGET_ACCOUNT_ID:role/TARGET_ROLE_NAME'  # Replace with your target role ARN
 
-    # Initialize the Glue client in the source account
+    # Initialize the Glue client using the existing Lambda execution role credentials
     glue_client = boto3.client('glue')
 
     def convert_datetime(obj):
@@ -19,22 +18,6 @@ def lambda_handler(event, context):
         # Get the list of tables in the source database
         response = glue_client.get_tables(DatabaseName=source_database_name)
         tables = response['TableList']
-
-        # Assume the role in the target account
-        sts_client = boto3.client('sts')
-        assumed_role = sts_client.assume_role(
-            RoleArn=target_role_arn,
-            RoleSessionName='GlueTableCopySession'
-        )
-        credentials = assumed_role['Credentials']
-
-        # Initialize the Glue client in the target account using assumed role credentials
-        target_glue_client = boto3.client(
-            'glue',
-            aws_access_key_id=credentials['AccessKeyId'],
-            aws_secret_access_key=credentials['SecretAccessKey'],
-            aws_session_token=credentials['SessionToken']
-        )
 
         for table in tables:
             table_input = {
@@ -58,6 +41,9 @@ def lambda_handler(event, context):
 
             # Debugging: Print table definition
             print(f"Table definition for {table['Name']}: {json.dumps(table_input, indent=2, default=convert_datetime)}")
+
+            # Initialize the Glue client in the target account using the same role
+            target_glue_client = boto3.client('glue')
 
             # Create the table in the target Glue catalog
             try:

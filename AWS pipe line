@@ -1,69 +1,49 @@
 import boto3
 import json
-from datetime import datetime
+import logging
+
+logger = logging.getLogger()
+logger.setLevel(logging.INFO)
+
+def create_table_in_glue(database_name, table_name):
+    glue_client = boto3.client('glue')
+    try:
+        glue_client.create_table(
+            DatabaseName=database_name,
+            TableInput={
+                'Name': table_name,
+                'StorageDescriptor': {
+                    'Columns': [
+                        {'Name': 'id', 'Type': 'int'},
+                        {'Name': 'name', 'Type': 'string'}
+                    ],
+                    'Compressed': False,
+                    'NumberOfBuckets': -1,
+                    'SerdeInfo': {
+                        'SerializationLibrary': 'org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe',
+                        'Parameters': {'serialization.format': '1'}
+                    },
+                    'StoredAsSubDirectories': False
+                },
+                'TableType': 'EXTERNAL_TABLE',
+                'Parameters': {
+                    'EXTERNAL': 'TRUE'
+                }
+            }
+        )
+        logger.info(f"Table {table_name} created successfully in database {database_name}.")
+    except Exception as e:
+        logger.error(f"Error creating table: {str(e)}")
 
 def lambda_handler(event, context):
-    source_database_name = 'source_database'  # Replace with your source Glue database name
-    target_database_name = 'target_database'  # Replace with your target Glue database name
-
-    # Initialize the Glue client using the existing Lambda execution role credentials
-    glue_client = boto3.client('glue')
-
-    def convert_datetime(obj):
-        if isinstance(obj, datetime):
-            return obj.isoformat()
-        raise TypeError("Type not serializable")
-
-    try:
-        # Get the list of tables in the source database
-        response = glue_client.get_tables(DatabaseName=source_database_name)
-        tables = response['TableList']
-
-        for table in tables:
-            table_input = {
-                'Name': table['Name'],
-                'Description': table.get('Description'),
-                'Owner': table.get('Owner'),
-                'LastAccessTime': table.get('LastAccessTime'),
-                'LastAnalyzedTime': table.get('LastAnalyzedTime'),
-                'Retention': table.get('Retention'),
-                'StorageDescriptor': table['StorageDescriptor'],
-                'PartitionKeys': table.get('PartitionKeys'),
-                'ViewOriginalText': table.get('ViewOriginalText'),
-                'ViewExpandedText': table.get('ViewExpandedText'),
-                'TableType': table.get('TableType'),
-                'Parameters': table.get('Parameters'),
-                'TargetTable': table.get('TargetTable')
-            }
-
-            # Remove any keys that are None
-            table_input = {k: v for k, v in table_input.items() if v is not None}
-
-            # Debugging: Print table definition
-            print(f"Table definition for {table['Name']}: {json.dumps(table_input, indent=2, default=convert_datetime)}")
-
-            # Initialize the Glue client in the target account using the same role
-            target_glue_client = boto3.client('glue')
-
-            # Create the table in the target Glue catalog
-            try:
-                target_glue_client.create_table(
-                    DatabaseName=target_database_name,
-                    TableInput=table_input
-                )
-                print(f"Table {table['Name']} copied successfully.")
-            except Exception as e:
-                print(f"Error copying table {table['Name']}: {str(e)}")
-
-        return {
-            'statusCode': 200,
-            'body': json.dumps(f'All tables from {source_database_name} copied to {target_database_name}')
-        }
-
-    except Exception as e:
-        error_message = f"An error occurred: {str(e)}"
-        print(error_message)
-        return {
-            'statusCode': 500,
-            'body': json.dumps(error_message)
-        }
+    # Define the parameters
+    database_name = 'TARGET_DATABASE_NAME'
+    table_name = 'NEW_TABLE_NAME'
+    
+    # Create table in Glue
+    create_table_in_glue(database_name, table_name)
+    
+    return {
+        'statusCode': 200,
+        'body': json.dumps('Table creation triggered successfully')
+    }

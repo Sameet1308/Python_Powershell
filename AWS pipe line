@@ -1,5 +1,6 @@
 import boto3
 import json
+from datetime import datetime
 
 def lambda_handler(event, context):
     # Source account details
@@ -23,12 +24,13 @@ def lambda_handler(event, context):
         
         # Replicate tables in the target database
         for table in tables:
+            table_name = table['Name']
             table_input = {
-                'Name': table['Name'],
+                'Name': table_name,
                 'Description': table.get('Description', ''),
                 'Owner': table.get('Owner', ''),
-                'LastAccessTime': table.get('LastAccessTime'),
-                'LastAnalyzedTime': table.get('LastAnalyzedTime'),
+                'LastAccessTime': table.get('LastAccessTime', datetime(1970, 1, 1)),
+                'LastAnalyzedTime': table.get('LastAnalyzedTime', datetime(1970, 1, 1)),
                 'Retention': table.get('Retention', 0),
                 'StorageDescriptor': table['StorageDescriptor'],
                 'PartitionKeys': table.get('PartitionKeys', []),
@@ -38,11 +40,23 @@ def lambda_handler(event, context):
                 'Parameters': table.get('Parameters', {})
             }
             
-            glue_client.create_table(
-                CatalogId=target_account_id,
-                DatabaseName=target_database_name,
-                TableInput=table_input
-            )
+            try:
+                # Check if the table already exists in the target database
+                target_glue_client.get_table(
+                    CatalogId=target_account_id,
+                    DatabaseName=target_database_name,
+                    Name=table_name
+                )
+                print(f"Table {table_name} already exists in the target database.")
+                
+            except target_glue_client.exceptions.EntityNotFoundException:
+                # Table does not exist, so create it
+                glue_client.create_table(
+                    CatalogId=target_account_id,
+                    DatabaseName=target_database_name,
+                    TableInput=table_input
+                )
+                print(f"Table {table_name} created successfully in the target database.")
         
         return {
             'statusCode': 200,

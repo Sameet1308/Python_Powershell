@@ -1,18 +1,56 @@
 import boto3
+import json
 
 def lambda_handler(event, context):
-    # Replace these placeholders with your target account ID and role name
-    TARGET_ACCOUNT_ID = "123456789012"
-    TARGET_ROLE_NAME = "glue-data-catalog-access-role"
-
-    # Create a boto3 Glue client session for the target account
-    session = boto3.Session(role_arn=f"arn:aws:iam::{TARGET_ACCOUNT_ID}:role/{TARGET_ROLE_NAME}")
-    glue_client = session.client("glue")
-
-    # Use a paginator to retrieve all tables in batches
-    paginator = glue_client.get_paginator("list_tables")
-    tables = []
-    for page in paginator.paginate():
-        tables.extend(page["TableList"])
-
-    return {"tables": tables}
+    # Source account details
+    source_account_id = 'source_account_id'  # Replace with the source AWS account ID
+    source_database_name = 'source_database_name'  # Replace with the source Glue database name
+    
+    # Target account details
+    target_account_id = 'target_account_id'  # Replace with the target AWS account ID
+    target_database_name = 'target_database_name'  # Replace with the target Glue database name
+    
+    # Initialize a boto3 client for Glue
+    glue_client = boto3.client('glue', region_name='us-east-1')  # Replace 'us-east-1' with your AWS region
+    
+    try:
+        # Get the list of tables from the source database
+        response = glue_client.get_tables(
+            CatalogId=source_account_id,
+            DatabaseName=source_database_name
+        )
+        tables = response['TableList']
+        
+        # Replicate tables in the target database
+        for table in tables:
+            table_input = {
+                'Name': table['Name'],
+                'Description': table.get('Description', ''),
+                'Owner': table.get('Owner', ''),
+                'LastAccessTime': table.get('LastAccessTime'),
+                'LastAnalyzedTime': table.get('LastAnalyzedTime'),
+                'Retention': table.get('Retention', 0),
+                'StorageDescriptor': table['StorageDescriptor'],
+                'PartitionKeys': table.get('PartitionKeys', []),
+                'ViewOriginalText': table.get('ViewOriginalText', ''),
+                'ViewExpandedText': table.get('ViewExpandedText', ''),
+                'TableType': table.get('TableType', ''),
+                'Parameters': table.get('Parameters', {})
+            }
+            
+            glue_client.create_table(
+                CatalogId=target_account_id,
+                DatabaseName=target_database_name,
+                TableInput=table_input
+            )
+        
+        return {
+            'statusCode': 200,
+            'body': json.dumps('Tables replicated successfully')
+        }
+        
+    except Exception as e:
+        return {
+            'statusCode': 500,
+            'body': str(e)
+        }

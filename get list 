@@ -1,0 +1,30 @@
+import boto3
+
+def lambda_handler(event, context):
+    # Initialize a boto3 client for Glue
+    glue_client = boto3.client('glue')
+    
+    # Define the database name
+    database_name = 'your_database_name'  # Replace with your Glue database name
+    
+    try:
+        # Get the list of tables in the specified database
+        response = glue_client.get_tables(DatabaseName=database_name)
+        tables = response['TableList']
+        
+        # Extract table names
+        table_names = [table['Name'] for table in tables]
+        
+        return {
+            'statusCode': 200,
+            'body': {
+                'database': database_name,
+                'tables': table_names
+            }
+        }
+        
+    except Exception as e:
+        return {
+            'statusCode': 500,
+            'body': str(e)
+        }

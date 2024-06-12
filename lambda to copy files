@@ -1,0 +1,32 @@
+import boto3
+
+s3_client = boto3.client('s3')
+
+def lambda_handler(event, context):
+    source_bucket = 'source-bucket-name'
+    destination_bucket = 'consumption-bucket-name'
+    destination_kms_key_id = 'arn:aws:kms:region:account-id:key/key-id'
+    
+    # List objects in the source bucket
+    response = s3_client.list_objects_v2(Bucket=source_bucket)
+    if 'Contents' in response:
+        for obj in response['Contents']:
+            source_key = obj['Key']
+            
+            # Construct the destination key (same as source key to preserve folder structure)
+            destination_key = source_key
+            
+            # Copy the object to the destination bucket with the specified KMS key
+            copy_source = {'Bucket': source_bucket, 'Key': source_key}
+            s3_client.copy_object(
+                CopySource=copy_source,
+                Bucket=destination_bucket,
+                Key=destination_key,
+                ServerSideEncryption='aws:kms',
+                SSEKMSKeyId=destination_kms_key_id
+            )
+    
+    return {
+        'statusCode': 200,
+        'body': 'Files copied successfully with KMS encryption, preserving folder structure.'
+    }

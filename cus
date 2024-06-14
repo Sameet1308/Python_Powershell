@@ -1,38 +1,58 @@
 import boto3
 import os
+import logging
 
+# Initialize S3 client
 s3_client = boto3.client('s3')
 
-SOURCE_BUCKET = 'your-source-bucket'
-SOURCE_PREFIX = 'your/source/prefix/'
-TARGET_BUCKET = 'your-target-bucket'
-TARGET_PREFIX = 'your/target/prefix/'
+# Configure logging
+logger = logging.getLogger()
+logger.setLevel(logging.INFO)
+
+# Constants for the source and target S3 URIs and KMS key
+SOURCE_S3_URI = 's3://your-source-bucket/your/source/prefix/'
+TARGET_S3_URI = 's3://your-target-bucket/your/target/prefix/'
 KMS_KEY_ID = 'your-kms-key-id'  # Replace with your KMS key ID
 
+def parse_s3_uri(s3_uri):
+    """Parses an S3 URI into bucket and prefix."""
+    if not s3_uri.startswith("s3://"):
+        raise ValueError("Invalid S3 URI")
+    parts = s3_uri[5:].split("/", 1)
+    bucket = parts[0]
+    prefix = parts[1] if len(parts) > 1 else ""
+    return bucket, prefix
+
 def lambda_handler(event, context):
+    source_bucket, source_prefix = parse_s3_uri(SOURCE_S3_URI)
+    target_bucket, target_prefix = parse_s3_uri(TARGET_S3_URI)
+    
     try:
         # List objects in the source prefix
-        response = s3_client.list_objects_v2(Bucket=SOURCE_BUCKET, Prefix=SOURCE_PREFIX)
+        response = s3_client.list_objects_v2(Bucket=source_bucket, Prefix=source_prefix)
         
         if 'Contents' not in response:
-            print(f"No objects found in {SOURCE_BUCKET}/{SOURCE_PREFIX}")
+            logger.info(f"No objects found in {source_bucket}/{source_prefix}")
             return
         
         for item in response['Contents']:
             source_key = item['Key']
-            target_key = os.path.join(TARGET_PREFIX, source_key[len(SOURCE_PREFIX):])
+            target_key = os.path.join(target_prefix, source_key[len(source_prefix):])
             
             # Copy the object to the target bucket with KMS encryption
-            copy_source = {'Bucket': SOURCE_BUCKET, 'Key': source_key}
-            s3_client.copy_object(
-                CopySource=copy_source,
-                Bucket=TARGET_BUCKET,
-                Key=target_key,
-                ServerSideEncryption='aws:kms',
-                SSEKMSKeyId=KMS_KEY_ID
-            )
-            print(f"Copied {source_key} to {TARGET_BUCKET}/{target_key} with KMS encryption")
+            copy_source = {'Bucket': source_bucket, 'Key': source_key}
+            try:
+                s3_client.copy_object(
+                    CopySource=copy_source,
+                    Bucket=target_bucket,
+                    Key=target_key,
+                    ServerSideEncryption='aws:kms',
+                    SSEKMSKeyId=KMS_KEY_ID
+                )
+                logger.info(f"Copied {source_key} to {target_bucket}/{target_key} with KMS encryption")
+            except Exception as copy_error:
+                logger.error(f"Error copying {source_key} to {target_bucket}/{target_key}: {copy_error}")
         
-    except Exception as e:
-        print(f"Error processing objects: {e}")
-        raise e
+    except Exception as list_error:
+        logger.error(f"Error listing objects in {source_bucket}/{source_prefix}: {list_error}")
+        raise list_error

@@ -1,14 +1,38 @@
-WITH months AS (
-    SELECT 
-        ROW_NUMBER() OVER (ORDER BY SEQ4()) AS month_num
-    FROM 
-        TABLE(GENERATOR(ROWCOUNT => 12))
-)
-SELECT 
-    LPAD(month_num::STRING, 2, '0') AS MONTH_PADDED,
-    month_num AS MONTH_NUMBER,
-    TO_CHAR(DATE_TRUNC('MONTH', DATEADD('MONTH', month_num - 1, '2022-01-01')), 'Month') AS MONTH_NAME
-FROM 
-    months
-ORDER BY 
-    MONTH_NUMBER DESC;
+import boto3
+import os
+
+s3_client = boto3.client('s3')
+
+SOURCE_BUCKET = 'your-source-bucket'
+SOURCE_PREFIX = 'your/source/prefix/'
+TARGET_BUCKET = 'your-target-bucket'
+TARGET_PREFIX = 'your/target/prefix/'
+KMS_KEY_ID = 'your-kms-key-id'  # Replace with your KMS key ID
+
+def lambda_handler(event, context):
+    try:
+        # List objects in the source prefix
+        response = s3_client.list_objects_v2(Bucket=SOURCE_BUCKET, Prefix=SOURCE_PREFIX)
+        
+        if 'Contents' not in response:
+            print(f"No objects found in {SOURCE_BUCKET}/{SOURCE_PREFIX}")
+            return
+        
+        for item in response['Contents']:
+            source_key = item['Key']
+            target_key = os.path.join(TARGET_PREFIX, source_key[len(SOURCE_PREFIX):])
+            
+            # Copy the object to the target bucket with KMS encryption
+            copy_source = {'Bucket': SOURCE_BUCKET, 'Key': source_key}
+            s3_client.copy_object(
+                CopySource=copy_source,
+                Bucket=TARGET_BUCKET,
+                Key=target_key,
+                ServerSideEncryption='aws:kms',
+                SSEKMSKeyId=KMS_KEY_ID
+            )
+            print(f"Copied {source_key} to {TARGET_BUCKET}/{target_key} with KMS encryption")
+        
+    except Exception as e:
+        print(f"Error processing objects: {e}")
+        raise e

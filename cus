@@ -23,21 +23,36 @@ def parse_s3_uri(s3_uri):
     prefix = parts[1] if len(parts) > 1 else ""
     return bucket, prefix
 
+def list_objects(bucket, prefix):
+    """Lists objects in an S3 bucket with a given prefix."""
+    paginator = s3_client.get_paginator('list_objects_v2')
+    pages = paginator.paginate(Bucket=bucket, Prefix=prefix)
+    
+    objects = {}
+    for page in pages:
+        if 'Contents' in page:
+            for obj in page['Contents']:
+                objects[obj['Key']] = obj['LastModified']
+    return objects
+
 def lambda_handler(event, context):
     source_bucket, source_prefix = parse_s3_uri(SOURCE_S3_URI)
     target_bucket, target_prefix = parse_s3_uri(TARGET_S3_URI)
     
     try:
-        # List objects in the source prefix
-        response = s3_client.list_objects_v2(Bucket=source_bucket, Prefix=source_prefix)
+        # List objects in the source and target prefixes
+        source_objects = list_objects(source_bucket, source_prefix)
+        target_objects = list_objects(target_bucket, target_prefix)
         
-        if 'Contents' not in response:
-            logger.info(f"No objects found in {source_bucket}/{source_prefix}")
-            return
-        
-        for item in response['Contents']:
-            source_key = item['Key']
+        for source_key, source_last_modified in source_objects.items():
             target_key = os.path.join(target_prefix, source_key[len(source_prefix):])
+            
+            # Check if the file exists in the target bucket and compare last modified times
+            if target_key in target_objects:
+                target_last_modified = target_objects[target_key]
+                if source_last_modified <= target_last_modified:
+                    logger.info(f"Skipping {source_key} as it is not modified since last copy")
+                    continue
             
             # Copy the object to the target bucket with KMS encryption
             copy_source = {'Bucket': source_bucket, 'Key': source_key}
@@ -54,5 +69,5 @@ def lambda_handler(event, context):
                 logger.error(f"Error copying {source_key} to {target_bucket}/{target_key}: {copy_error}")
         
     except Exception as list_error:
-        logger.error(f"Error listing objects in {source_bucket}/{source_prefix}: {list_error}")
+        logger.error(f"Error listing objects in {source_bucket}/{source_prefix} or {target_bucket}/{target_prefix}: {list_error}")
         raise list_error

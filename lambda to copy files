@@ -1,32 +1,75 @@
 import boto3
+import os
+import logging
 
+# Initialize S3 client
 s3_client = boto3.client('s3')
 
+# Configure logging
+logger = logging.getLogger()
+logger.setLevel(logging.INFO)
+
+# Constants for the source and target S3 URIs and KMS key
+SOURCE_S3_URI = 's3://source-bucket/data/'
+TARGET_S3_URI = 's3://target-bucket/processed/'
+KMS_KEY_ID = 'your-kms-key-id'  # Replace with your KMS key ID
+
+def parse_s3_uri(s3_uri):
+    """Parses an S3 URI into bucket and prefix."""
+    if not s3_uri.startswith("s3://"):
+        raise ValueError("Invalid S3 URI")
+    parts = s3_uri[5:].split("/", 1)
+    bucket = parts[0]
+    prefix = parts[1] if len(parts) > 1 else ""
+    return bucket, prefix
+
+def list_objects(bucket, prefix):
+    """Lists objects in an S3 bucket with a given prefix."""
+    paginator = s3_client.get_paginator('list_objects_v2')
+    pages = paginator.paginate(Bucket=bucket, Prefix=prefix)
+    
+    objects = {}
+    for page in pages:
+        if 'Contents' in page:
+            for obj in page['Contents']:
+                objects[obj['Key']] = obj['LastModified']
+    return objects
+
 def lambda_handler(event, context):
-    source_bucket = 'source-bucket-name'
-    destination_bucket = 'consumption-bucket-name'
-    destination_kms_key_id = 'arn:aws:kms:region:account-id:key/key-id'
+    source_bucket, source_prefix = parse_s3_uri(SOURCE_S3_URI)
+    target_bucket, target_prefix = parse_s3_uri(TARGET_S3_URI)
     
-    # List objects in the source bucket
-    response = s3_client.list_objects_v2(Bucket=source_bucket)
-    if 'Contents' in response:
-        for obj in response['Contents']:
-            source_key = obj['Key']
+    try:
+        # List objects in the source and target prefixes
+        source_objects = list_objects(source_bucket, source_prefix)
+        target_objects = list_objects(target_bucket, target_prefix)
+        
+        for source_key, source_last_modified in source_objects.items():
+            file_name = os.path.basename(source_key)
+            sub_prefix = os.path.join(target_prefix, file_name)
+            target_key = os.path.join(sub_prefix, file_name)
             
-            # Construct the destination key (same as source key to preserve folder structure)
-            destination_key = source_key
+            # Check if the file exists in the target bucket and compare last modified times
+            if target_key in target_objects:
+                target_last_modified = target_objects[target_key]
+                if source_last_modified <= target_last_modified:
+                    logger.info(f"Skipping {source_key} as it is not modified since last copy")
+                    continue
             
-            # Copy the object to the destination bucket with the specified KMS key
+            # Copy the object to the target bucket with KMS encryption
             copy_source = {'Bucket': source_bucket, 'Key': source_key}
-            s3_client.copy_object(
-                CopySource=copy_source,
-                Bucket=destination_bucket,
-                Key=destination_key,
-                ServerSideEncryption='aws:kms',
-                SSEKMSKeyId=destination_kms_key_id
-            )
-    
-    return {
-        'statusCode': 200,
-        'body': 'Files copied successfully with KMS encryption, preserving folder structure.'
-    }
+            try:
+                s3_client.copy_object(
+                    CopySource=copy_source,
+                    Bucket=target_bucket,
+                    Key=target_key,
+                    ServerSideEncryption='aws:kms',
+                    SSEKMSKeyId=KMS_KEY_ID
+                )
+                logger.info(f"Copied {source_key} to {target_bucket}/{target_key} with KMS encryption")
+            except Exception as copy_error:
+                logger.error(f"Error copying {source_key} to {target_bucket}/{target_key}: {copy_error}")
+        
+    except Exception as list_error:
+        logger.error(f"Error listing objects in {source_bucket}/{source_prefix} or {target_bucket}/{target_prefix}: {list_error}")
+        raise list_error

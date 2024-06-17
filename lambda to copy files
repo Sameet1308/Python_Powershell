@@ -10,8 +10,8 @@ logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
 # Constants for the source and target S3 URIs and KMS key
-SOURCE_S3_URI = 's3://source-bucket/data/'
-TARGET_S3_URI = 's3://target-bucket/processed/'
+SOURCE_S3_URI = 's3://source-bucket/b_q/subbq/'
+TARGET_S3_URI = 's3://target-bucket/consumption/'
 KMS_KEY_ID = 'your-kms-key-id'  # Replace with your KMS key ID
 
 def parse_s3_uri(s3_uri):
@@ -45,8 +45,9 @@ def lambda_handler(event, context):
         target_objects = list_objects(target_bucket, target_prefix)
         
         for source_key, source_last_modified in source_objects.items():
+            relative_path = source_key[len(source_prefix):]
             file_name = os.path.basename(source_key)
-            sub_prefix = os.path.join(target_prefix, file_name)
+            sub_prefix = os.path.join(target_prefix, relative_path)
             target_key = os.path.join(sub_prefix, file_name)
             
             # Check if the file exists in the target bucket and compare last modified times

@@ -2,12 +2,16 @@ import pandas as pd
 from sqlalchemy import create_engine
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import time
+import warnings
+
+# Suppress the DtypeWarning
+warnings.simplefilter(action='ignore', category=pd.errors.DtypeWarning)
 
 # Connection parameters
-server = 'hshs.xhxhd.net'
-port = '2344'
+server = 'b18382.hxhx.adid.net'
+port = '2828'
 database = 'YOUR_DATABASE'
-table_name = 'dbo.YOUR_TABLE_NAME'  # Adding dbo prefix
+table_name = 'YOUR_TABLE_NAME'  # Just the table name without schema
 csv_file_path = r'\\ghh\path\to\your\large_csv_file.csv'  # Adjust this to your network share path
 chunk_size = 10000  # Reasonable chunk size to avoid overloading the system
 sample_size = 100000  # Number of rows to load for sample measurement
@@ -18,7 +22,7 @@ engine = create_engine(connection_string)
 
 # Function to load a single chunk of data
 def load_chunk(chunk, table_name):
-    chunk.to_sql(table_name, engine, if_exists='append', index=False)
+    chunk.to_sql(table_name, engine, if_exists='append', index=False, schema='dbo')
 
 # Measure time for sample data
 start_time = time.time()
@@ -47,7 +51,7 @@ def load_csv_to_sql_in_parallel(csv_file, table_name, chunk_size):
 
     # Create table if it doesn't exist
     df = pd.read_csv(csv_file, nrows=1)
-    df.head(0).to_sql(table_name, engine, if_exists='replace', index=False)
+    df.head(0).to_sql(table_name, engine, if_exists='replace', index=False, schema='dbo')
 
     # Use ThreadPoolExecutor for parallel processing
     with ThreadPoolExecutor(max_workers=4) as executor:  # Adjust number of workers as needed

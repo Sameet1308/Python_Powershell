@@ -3,16 +3,38 @@ import pandas as pd
 import csv
 
 def remove_double_quotes_from_csvs(source_directory, destination_directory):
-    # List all files in the source directory
-    for filename in os.listdir(source_directory):
-        # Check if the file is a CSV
-        if filename.endswith('.csv'):
-            source_file_path = os.path.join(source_directory, filename)
-            # Read the CSV file
-            df = pd.read_csv(source_file_path, quotechar='"')
-            # Save the modified CSV to the destination directory
-            destination_file_path = os.path.join(destination_directory, filename)
-            df.to_csv(destination_file_path, index=False, quoting=csv.QUOTE_NONE, escapechar='\\')
+    try:
+        # Check if source and destination directories exist
+        if not os.path.exists(source_directory):
+            print(f"Source directory '{source_directory}' does not exist.")
+            return
+        if not os.path.exists(destination_directory):
+            os.makedirs(destination_directory)
+            print(f"Destination directory '{destination_directory}' created.")
+
+        # List all files in the source directory
+        files_processed = 0
+        for filename in os.listdir(source_directory):
+            # Check if the file is a CSV
+            if filename.endswith('.csv'):
+                source_file_path = os.path.join(source_directory, filename)
+                try:
+                    # Read the CSV file
+                    df = pd.read_csv(source_file_path, quotechar='"')
+                    # Save the modified CSV to the destination directory
+                    destination_file_path = os.path.join(destination_directory, filename)
+                    df.to_csv(destination_file_path, index=False, quoting=csv.QUOTE_NONE, escapechar='\\')
+                    print(f"Processed file: {filename}")
+                    files_processed += 1
+                except Exception as e:
+                    print(f"Failed to process file {filename}: {e}")
+
+        if files_processed > 0:
+            print(f"Successfully processed {files_processed} files.")
+        else:
+            print("No CSV files found to process.")
+    except Exception as e:
+        print(f"An error occurred: {e}")
 
 # Example usage
 source_directory_path = '/path/to/source/directory'

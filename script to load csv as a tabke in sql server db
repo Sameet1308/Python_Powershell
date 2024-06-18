@@ -1,73 +1,73 @@
-import pandas as pd
-from sqlalchemy import create_engine
-from concurrent.futures import ThreadPoolExecutor, as_completed
+import csv
+import pyodbc
 import time
 import warnings
 
-# Suppress the DtypeWarning
-warnings.simplefilter(action='ignore', category=pd.errors.DtypeWarning)
+# Disable all warnings
+warnings.filterwarnings("ignore")
 
 # Connection parameters
 server = 'b18382.hxhx.adid.net'
 port = '2828'
 database = 'YOUR_DATABASE'
-table_name = 'YOUR_TABLE_NAME'  # Just the table name without schema
+table_name = 'dbo.YOUR_TABLE_NAME'  # Adding dbo prefix
 csv_file_path = r'\\ghh\path\to\your\large_csv_file.csv'  # Adjust this to your network share path
-chunk_size = 5000  # Smaller chunk size to avoid memory issues
-sample_size = 100000  # Number of rows to load for sample measurement
+batch_size = 1000  # Number of rows to insert in each batch
+print_interval = 5000  # Interval for print statements
 
 # Create a connection to the SQL Server database using Windows Authentication
-connection_string = f"mssql+pyodbc://@{server}:{port}/{database}?driver=ODBC+Driver+17+for+SQL+Server&trusted_connection=yes"
-engine = create_engine(connection_string)
+connection_string = f"DRIVER={{ODBC Driver 17 for SQL Server}};SERVER={server},{port};DATABASE={database};Trusted_Connection=yes;"
+conn = pyodbc.connect(connection_string)
+cursor = conn.cursor()
 
-# Function to load a single chunk of data
-def load_chunk(chunk, table_name):
-    chunk.to_sql(table_name, engine, if_exists='append', index=False, schema='dbo')
+# Function to create table if it doesn't exist
+def create_table_if_not_exists(cursor, table_name, column_names):
+    columns = ', '.join([f'[{name}] NVARCHAR(MAX)' for name in column_names])
+    create_table_sql = f"IF NOT EXISTS (SELECT * FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = '{table_name.split('.')[-1]}') CREATE TABLE {table_name} ({columns})"
+    cursor.execute(create_table_sql)
+    cursor.commit()
 
-# Measure time for sample data
-start_time = time.time()
+# Function to insert batch of rows into SQL Server
+def insert_batch(cursor, table_name, column_names, rows):
+    placeholders = ', '.join(['?' for _ in column_names])
+    columns = ', '.join([f'[{name}]' for name in column_names])
+    insert_sql = f"INSERT INTO {table_name} ({columns}) VALUES ({placeholders})"
+    cursor.executemany(insert_sql, rows)
+    cursor.commit()
 
-# Load sample data
-with ThreadPoolExecutor(max_workers=4) as executor:
-    futures = []
-    for chunk in pd.read_csv(csv_file_path, chunksize=chunk_size, nrows=sample_size, low_memory=True):
-        futures.append(executor.submit(load_chunk, chunk, table_name))
-    for future in as_completed(futures):
-        future.result()
+# Read CSV and process in batches
+start_time = time.time()  # Start the timer
+with open(csv_file_path, newline='', encoding='utf-8') as csvfile:
+    reader = csv.reader(csvfile)
+    column_names = next(reader)  # Read the header
+    create_table_if_not_exists(cursor, table_name, column_names)
 
-end_time = time.time()
-sample_duration = end_time - start_time
+    batch = []
+    total_rows = 0
+    batch_count = 0
 
-# Calculate estimated time for full data
-total_rows = 2000000  # Total number of rows in the CSV
-estimated_total_time = (total_rows / sample_size) * sample_duration
+    for row in reader:
+        batch.append(row)
+        total_rows += 1
+        if len(batch) == batch_size:
+            insert_batch(cursor, table_name, column_names, batch)
+            batch_count += 1
+            if total_rows % print_interval == 0:
+                print(f"Inserted {total_rows} rows so far")
+            batch = []
 
-print(f"Sample load time for {sample_size} rows: {sample_duration:.2f} seconds")
-print(f"Estimated total time for {total_rows} rows: {estimated_total_time:.2f} seconds")
+    # Insert any remaining rows
+    if batch:
+        insert_batch(cursor, table_name, column_names, batch)
+        total_rows += len(batch)
+        print(f"Inserted final batch of {len(batch)} rows, total {total_rows} rows inserted")
 
-# Define a function to load CSV in parallel chunks and write to SQL Server
-def load_csv_to_sql_in_parallel(csv_file, table_name, chunk_size):
-    start_time = time.time()  # Start the timer
+end_time = time.time()  # End the timer
+total_duration = end_time - start_time
+print(f"Total time taken: {total_duration:.2f} seconds")
 
-    # Create table if it doesn't exist
-    df = pd.read_csv(csv_file, nrows=1, low_memory=True)
-    df.head(0).to_sql(table_name, engine, if_exists='replace', index=False, schema='dbo')
-
-    # Use ThreadPoolExecutor for parallel processing
-    with ThreadPoolExecutor(max_workers=4) as executor:  # Adjust number of workers as needed
-        futures = []
-        for chunk in pd.read_csv(csv_file, chunksize=chunk_size, low_memory=True):
-            futures.append(executor.submit(load_chunk, chunk, table_name))
-        
-        # Wait for all futures to complete
-        for future in as_completed(futures):
-            future.result()  # This will raise exceptions if any occurred
-
-    end_time = time.time()  # End the timer
-    duration = end_time - start_time
-    print(f"Total time taken: {duration:.2f} seconds")
-
-# Load CSV to SQL Server
-load_csv_to_sql_in_parallel(csv_file_path, table_name, chunk_size)
+# Close the connection
+cursor.close()
+conn.close()
 
 print("CSV file has been successfully loaded into the SQL Server table.")

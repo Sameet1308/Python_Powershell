@@ -1,0 +1,39 @@
+import pandas as pd
+from sqlalchemy import create_engine
+import pyodbc
+import time
+
+# Connection parameters
+server = 'xbx.net'
+port = '32444'
+database = 'YOUR_DATABASE'
+username = 'YOUR_USERNAME'
+password = 'YOUR_PASSWORD'
+table_name = 'dbo.YOUR_TABLE_NAME'  # Adding dbo prefix
+csv_file_path = 'path/to/your/large_csv_file.csv'
+
+# Create a connection to the SQL Server database
+connection_string = f"mssql+pyodbc://{username}:{password}@{server}:{port}/{database}?driver=ODBC+Driver+17+for+SQL+Server"
+engine = create_engine(connection_string)
+
+# Define a function to load CSV in chunks and write to SQL Server
+def load_csv_to_sql_in_chunks(csv_file, table_name, chunk_size=10000):
+    # Create table if it doesn't exist
+    # Adjust column data types according to your needs
+    df = pd.read_csv(csv_file, nrows=1)
+    df.head(0).to_sql(table_name, engine, if_exists='replace', index=False)
+    
+    start_time = time.time()  # Start the timer
+    
+    for chunk in pd.read_csv(csv_file, chunksize=chunk_size):
+        chunk.to_sql(table_name, engine, if_exists='append', index=False)
+        print(f"{len(chunk)} records inserted.")
+    
+    end_time = time.time()  # End the timer
+    duration = end_time - start_time
+    print(f"Total time taken: {duration:.2f} seconds")
+
+# Load CSV to SQL Server
+load_csv_to_sql_in_chunks(csv_file_path, table_name)
+
+print("CSV file has been successfully loaded into the SQL Server table.")

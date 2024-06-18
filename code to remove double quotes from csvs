@@ -1,42 +1,77 @@
 import os
 import pandas as pd
 import csv
+import shutil
+from datetime import datetime
 
-def remove_double_quotes_from_csvs(source_directory, destination_directory):
+def contains_double_quotes(file_path):
+    with open(file_path, 'r') as file:
+        for line in file:
+            if '"' in line:
+                return True
+    return False
+
+def get_timestamp():
+    return datetime.now().strftime('%Y%m%d%H%M%S')
+
+def archive_files(source_directory, archive_directory, timestamp):
+    archive_subdir = os.path.join(archive_directory, timestamp)
+    os.makedirs(archive_subdir, exist_ok=True)
+    for filename in os.listdir(source_directory):
+        if filename.endswith('.csv'):
+            source_file_path = os.path.join(source_directory, filename)
+            archived_file_path = os.path.join(archive_subdir, filename)
+            shutil.copy2(source_file_path, archived_file_path)
+            print(f"Archived file: {archived_file_path}")
+
+def remove_double_quotes_from_csvs(raw_directory, refined_directory, archive_directory):
     try:
-        # Check if source and destination directories exist
-        if not os.path.exists(source_directory):
-            print(f"Source directory '{source_directory}' does not exist.")
-            return
-        if not os.path.exists(destination_directory):
-            os.makedirs(destination_directory)
-            print(f"Destination directory '{destination_directory}' created.")
+        # Ensure all directories exist
+        os.makedirs(refined_directory, exist_ok=True)
+        os.makedirs(archive_directory, exist_ok=True)
 
-        # List all files in the source directory
+        # List all files in the raw directory
         files_processed = 0
-        for filename in os.listdir(source_directory):
+        for filename in os.listdir(raw_directory):
             # Check if the file is a CSV
             if filename.endswith('.csv'):
-                source_file_path = os.path.join(source_directory, filename)
-                try:
-                    # Read the CSV file
-                    df = pd.read_csv(source_file_path, quotechar='"')
-                    # Save the modified CSV to the destination directory
-                    destination_file_path = os.path.join(destination_directory, filename)
-                    df.to_csv(destination_file_path, index=False, quoting=csv.QUOTE_NONE, escapechar='\\')
-                    print(f"Processed file: {filename}")
-                    files_processed += 1
-                except Exception as e:
-                    print(f"Failed to process file {filename}: {e}")
+                raw_file_path = os.path.join(raw_directory, filename)
+                refined_file_path = os.path.join(refined_directory, filename)
+
+                # Read the CSV file and process it if it contains double quotes
+                if contains_double_quotes(raw_file_path):
+                    try:
+                        df = pd.read_csv(raw_file_path, quotechar='"')
+                        df.to_csv(refined_file_path, index=False, quoting=csv.QUOTE_NONE, escapechar='\\')
+                        print(f"Processed and moved file to refined: {refined_file_path}")
+                        files_processed += 1
+                    except Exception as e:
+                        print(f"Failed to process file {filename}: {e}")
+                else:
+                    # Move the file directly to refined if no double quotes are found
+                    shutil.move(raw_file_path, refined_file_path)
+                    print(f"Moved file to refined without processing: {refined_file_path}")
+
+        # Archive the newly refined files
+        if files_processed > 0 or os.listdir(refined_directory):
+            timestamp = get_timestamp()
+            archive_files(refined_directory, archive_directory, timestamp)
+
+        # Clean the raw directory
+        for filename in os.listdir(raw_directory):
+            file_path = os.path.join(raw_directory, filename)
+            os.remove(file_path)
+            print(f"Deleted raw file: {file_path}")
 
         if files_processed > 0:
             print(f"Successfully processed {files_processed} files.")
         else:
-            print("No CSV files found to process.")
+            print("No CSV files with double quotes found to process.")
     except Exception as e:
         print(f"An error occurred: {e}")
 
 # Example usage
-source_directory_path = '/path/to/source/directory'
-destination_directory_path = '/path/to/destination/directory'
-remove_double_quotes_from_csvs(source_directory_path, destination_directory_path)
+raw_directory_path = '/path/to/raw/directory'
+refined_directory_path = '/path/to/refined/directory'
+archive_directory_path = '/path/to/archive/directory'
+remove_double_quotes_from_csvs(raw_directory_path, refined_directory_path, archive_directory_path)

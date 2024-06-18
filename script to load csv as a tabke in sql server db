@@ -1,39 +1,49 @@
 import pandas as pd
 from sqlalchemy import create_engine
-import pyodbc
+from concurrent.futures import ThreadPoolExecutor, as_completed
 import time
 
 # Connection parameters
-server = 'xbx.net'
-port = '32444'
+server = 'hshs.xhxhd.net'
+port = '2344'
 database = 'YOUR_DATABASE'
 username = 'YOUR_USERNAME'
 password = 'YOUR_PASSWORD'
 table_name = 'dbo.YOUR_TABLE_NAME'  # Adding dbo prefix
 csv_file_path = 'path/to/your/large_csv_file.csv'
+chunk_size = 10000  # Reasonable chunk size to avoid overloading the system
 
 # Create a connection to the SQL Server database
 connection_string = f"mssql+pyodbc://{username}:{password}@{server}:{port}/{database}?driver=ODBC+Driver+17+for+SQL+Server"
 engine = create_engine(connection_string)
 
-# Define a function to load CSV in chunks and write to SQL Server
-def load_csv_to_sql_in_chunks(csv_file, table_name, chunk_size=10000):
+# Function to load a single chunk of data
+def load_chunk(chunk, table_name):
+    chunk.to_sql(table_name, engine, if_exists='append', index=False)
+
+# Define a function to load CSV in parallel chunks and write to SQL Server
+def load_csv_to_sql_in_parallel(csv_file, table_name, chunk_size):
+    start_time = time.time()  # Start the timer
+
     # Create table if it doesn't exist
-    # Adjust column data types according to your needs
     df = pd.read_csv(csv_file, nrows=1)
     df.head(0).to_sql(table_name, engine, if_exists='replace', index=False)
-    
-    start_time = time.time()  # Start the timer
-    
-    for chunk in pd.read_csv(csv_file, chunksize=chunk_size):
-        chunk.to_sql(table_name, engine, if_exists='append', index=False)
-        print(f"{len(chunk)} records inserted.")
-    
+
+    # Use ThreadPoolExecutor for parallel processing
+    with ThreadPoolExecutor(max_workers=4) as executor:  # Adjust number of workers as needed
+        futures = []
+        for chunk in pd.read_csv(csv_file, chunksize=chunk_size):
+            futures.append(executor.submit(load_chunk, chunk, table_name))
+        
+        # Wait for all futures to complete
+        for future in as_completed(futures):
+            future.result()  # This will raise exceptions if any occurred
+
     end_time = time.time()  # End the timer
     duration = end_time - start_time
     print(f"Total time taken: {duration:.2f} seconds")
 
 # Load CSV to SQL Server
-load_csv_to_sql_in_chunks(csv_file_path, table_name)
+load_csv_to_sql_in_parallel(csv_file_path, table_name, chunk_size)
 
 print("CSV file has been successfully loaded into the SQL Server table.")

@@ -54,11 +54,10 @@ def remove_double_quotes_from_csvs(raw_directory, refined_directory, archive_dir
         files_processed = 0
         for filename in os.listdir(raw_directory):
             raw_file_path = os.path.join(raw_directory, filename)
-            refined_file_path = os.path.join(refined_directory, filename)
 
             # Convert XLSX to CSV if needed and process the file
             if filename.endswith('.csv') or filename.endswith('.xlsx'):
-                refined_file_path = process_file(raw_file_path, refined_directory, files_processed)
+                process_file(raw_file_path, refined_directory, files_processed)
 
         # Archive the newly refined files
         if files_processed > 0 or os.listdir(refined_directory):
@@ -78,8 +77,8 @@ def remove_double_quotes_from_csvs(raw_directory, refined_directory, archive_dir
     except Exception as e:
         print(f"An error occurred: {e}")
 
-# Example usage
-raw_directory_path = '/path/to/raw/directory'
-refined_directory_path = '/path/to/refined/directory'
-archive_directory_path = '/path/to/archive/directory'
+# Example usage with sample paths
+raw_directory_path = '/path/to/sample/raw'
+refined_directory_path = '/path/to/sample/refined'
+archive_directory_path = '/path/to/sample/archive'
 remove_double_quotes_from_csvs(raw_directory_path, refined_directory_path, archive_directory_path)

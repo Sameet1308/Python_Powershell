@@ -4,13 +4,6 @@ import csv
 import shutil
 from datetime import datetime
 
-def contains_double_quotes(file_path):
-    with open(file_path, 'r') as file:
-        for line in file:
-            if '"' in line:
-                return True
-    return False
-
 def get_timestamp():
     return datetime.now().strftime('%Y%m%d%H%M%S')
 
@@ -24,28 +17,28 @@ def archive_files(source_directory, archive_directory, timestamp):
             shutil.copy2(source_file_path, archived_file_path)
             print(f"Archived file: {archived_file_path}")
 
-def process_file(file_path, refined_directory, files_processed):
+def process_xlsx(file_path, refined_directory):
     try:
-        if file_path.endswith('.csv'):
-            df = pd.read_csv(file_path, quotechar='"')
-        elif file_path.endswith('.xlsx'):
-            xls = pd.ExcelFile(file_path)
-            for sheet_name in xls.sheet_names:
-                df = pd.read_excel(file_path, sheet_name=sheet_name)
-                df['row_count'] = 1  # Add row_count column
-                csv_file_name = f"{os.path.splitext(os.path.basename(file_path))[0]}_{sheet_name}.csv"
-                refined_file_path = os.path.join(refined_directory, csv_file_name)
-                df.to_csv(refined_file_path, index=False, quoting=csv.QUOTE_NONNUMERIC, quotechar='"')
-                print(f"Processed and moved file to refined: {refined_file_path}")
-                files_processed += 1
-            return
+        xls = pd.ExcelFile(file_path)
+        for sheet_name in xls.sheet_names:
+            df = pd.read_excel(file_path, sheet_name=sheet_name)
+            df['row_count'] = 1  # Add row_count column
+            csv_file_name = f"{os.path.splitext(os.path.basename(file_path))[0]}_{sheet_name}.csv"
+            refined_file_path = os.path.join(refined_directory, csv_file_name)
+            df.to_csv(refined_file_path, index=False, quoting=csv.QUOTE_NONNUMERIC)
+            print(f"Processed and moved file to refined: {refined_file_path}")
+    except Exception as e:
+        print(f"Failed to process Excel file {file_path}: {e}")
+
+def process_csv(file_path, refined_directory):
+    try:
+        df = pd.read_csv(file_path, quotechar='"')
         df['row_count'] = 1  # Add row_count column
         refined_file_path = os.path.join(refined_directory, os.path.basename(file_path))
-        df.to_csv(refined_file_path, index=False, quoting=csv.QUOTE_NONNUMERIC, quotechar='"')
+        df.to_csv(refined_file_path, index=False, quoting=csv.QUOTE_NONNUMERIC)
         print(f"Processed and moved file to refined: {refined_file_path}")
-        files_processed += 1
     except Exception as e:
-        print(f"Failed to process file {file_path}: {e}")
+        print(f"Failed to process CSV file {file_path}: {e}")
 
 def remove_double_quotes_from_csvs(raw_directory, refined_directory, archive_directory):
     try:
@@ -56,10 +49,14 @@ def remove_double_quotes_from_csvs(raw_directory, refined_directory, archive_dir
         for filename in os.listdir(raw_directory):
             raw_file_path = os.path.join(raw_directory, filename)
 
-            if filename.endswith('.csv') or filename.endswith('.xlsx'):
-                process_file(raw_file_path, refined_directory, files_processed)
+            if filename.endswith('.csv'):
+                process_csv(raw_file_path, refined_directory)
+                files_processed += 1
+            elif filename.endswith('.xlsx'):
+                process_xlsx(raw_file_path, refined_directory)
+                files_processed += 1
 
-        if files_processed > 0 or os.listdir(refined_directory):
+        if files_processed > 0:
             timestamp = get_timestamp()
             archive_files(refined_directory, archive_directory, timestamp)
 

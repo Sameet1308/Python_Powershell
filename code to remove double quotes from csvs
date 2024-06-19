@@ -24,6 +24,26 @@ def archive_files(source_directory, archive_directory, timestamp):
             shutil.copy2(source_file_path, archived_file_path)
             print(f"Archived file: {archived_file_path}")
 
+def process_file(file_path, refined_directory, files_processed):
+    try:
+        # Determine if the file is a CSV or an XLSX
+        if file_path.endswith('.csv'):
+            df = pd.read_csv(file_path, quotechar='"')
+        elif file_path.endswith('.xlsx'):
+            df = pd.read_excel(file_path)
+            file_path = file_path.replace('.xlsx', '.csv')
+
+        # Process the DataFrame
+        df['row_count'] = 1  # Add row_count column
+        refined_file_path = os.path.join(refined_directory, os.path.basename(file_path))
+        df.to_csv(refined_file_path, index=False, quoting=csv.QUOTE_NONE, escapechar='\\')
+        print(f"Processed and moved file to refined: {refined_file_path}")
+        files_processed += 1
+        return refined_file_path
+    except Exception as e:
+        print(f"Failed to process file {file_path}: {e}")
+    return None
+
 def remove_double_quotes_from_csvs(raw_directory, refined_directory, archive_directory):
     try:
         # Ensure all directories exist
@@ -33,28 +53,12 @@ def remove_double_quotes_from_csvs(raw_directory, refined_directory, archive_dir
         # List all files in the raw directory
         files_processed = 0
         for filename in os.listdir(raw_directory):
-            # Check if the file is a CSV
-            if filename.endswith('.csv'):
-                raw_file_path = os.path.join(raw_directory, filename)
-                refined_file_path = os.path.join(refined_directory, filename)
+            raw_file_path = os.path.join(raw_directory, filename)
+            refined_file_path = os.path.join(refined_directory, filename)
 
-                # Read the CSV file and process it if it contains double quotes
-                if contains_double_quotes(raw_file_path):
-                    try:
-                        df = pd.read_csv(raw_file_path, quotechar='"')
-                        df['row_count'] = 1  # Add row_count column
-                        df.to_csv(refined_file_path, index=False, quoting=csv.QUOTE_NONE, escapechar='\\')
-                        print(f"Processed and moved file to refined: {refined_file_path}")
-                        files_processed += 1
-                    except Exception as e:
-                        print(f"Failed to process file {filename}: {e}")
-                else:
-                    # Move the file directly to refined if no double quotes are found
-                    df = pd.read_csv(raw_file_path)
-                    df['row_count'] = 1  # Add row_count column
-                    df.to_csv(refined_file_path, index=False, quoting=csv.QUOTE_NONE, escapechar='\\')
-                    shutil.move(raw_file_path, refined_file_path)
-                    print(f"Moved file to refined without processing: {refined_file_path}")
+            # Convert XLSX to CSV if needed and process the file
+            if filename.endswith('.csv') or filename.endswith('.xlsx'):
+                refined_file_path = process_file(raw_file_path, refined_directory, files_processed)
 
         # Archive the newly refined files
         if files_processed > 0 or os.listdir(refined_directory):
@@ -70,7 +74,7 @@ def remove_double_quotes_from_csvs(raw_directory, refined_directory, archive_dir
         if files_processed > 0:
             print(f"Successfully processed {files_processed} files.")
         else:
-            print("No CSV files with double quotes found to process.")
+            print("No CSV or XLSX files found to process.")
     except Exception as e:
         print(f"An error occurred: {e}")
 

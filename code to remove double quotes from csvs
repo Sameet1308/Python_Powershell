@@ -42,6 +42,7 @@ def remove_double_quotes_from_csvs(raw_directory, refined_directory, archive_dir
                 if contains_double_quotes(raw_file_path):
                     try:
                         df = pd.read_csv(raw_file_path, quotechar='"')
+                        df['row_count'] = 1  # Add row_count column
                         df.to_csv(refined_file_path, index=False, quoting=csv.QUOTE_NONE, escapechar='\\')
                         print(f"Processed and moved file to refined: {refined_file_path}")
                         files_processed += 1
@@ -49,6 +50,9 @@ def remove_double_quotes_from_csvs(raw_directory, refined_directory, archive_dir
                         print(f"Failed to process file {filename}: {e}")
                 else:
                     # Move the file directly to refined if no double quotes are found
+                    df = pd.read_csv(raw_file_path)
+                    df['row_count'] = 1  # Add row_count column
+                    df.to_csv(refined_file_path, index=False, quoting=csv.QUOTE_NONE, escapechar='\\')
                     shutil.move(raw_file_path, refined_file_path)
                     print(f"Moved file to refined without processing: {refined_file_path}")
 

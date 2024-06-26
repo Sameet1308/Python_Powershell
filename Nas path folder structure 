@@ -1,0 +1,93 @@
+import os
+import pandas as pd
+import csv
+import shutil
+from datetime import datetime
+
+def get_timestamp():
+    return datetime.now().strftime('%Y%m%d%H%M%S')
+
+def archive_files(source_directory, archive_directory, timestamp):
+    archive_subdir = os.path.join(archive_directory, timestamp)
+    os.makedirs(archive_subdir, exist_ok=True)
+    for filename in os.listdir(source_directory):
+        if filename.endswith('.csv'):
+            source_file_path = os.path.join(source_directory, filename)
+            archived_file_path = os.path.join(archive_subdir, filename)
+            shutil.copy2(source_file_path, archived_file_path)
+            print(f"Archived file: {archived_file_path}")
+
+def process_xlsx(file_path, refined_directory):
+    try:
+        xls = pd.ExcelFile(file_path)
+        for sheet_name in xls.sheet_names:
+            df = pd.read_excel(file_path, sheet_name=sheet_name)
+            df['row_count'] = 1  # Add row_count column
+            csv_file_name = f"{os.path.splitext(os.path.basename(file_path))[0]}_{sheet_name}.csv"
+            refined_file_path = os.path.join(refined_directory, csv_file_name)
+            df.to_csv(refined_file_path, index=False, quoting=csv.QUOTE_NONNUMERIC)
+            print(f"Processed and moved file to refined: {refined_file_path}")
+    except Exception as e:
+        print(f"Failed to process Excel file {file_path}: {e}")
+
+def process_csv(file_path, refined_directory):
+    try:
+        df = pd.read_csv(file_path, quotechar='"')
+        df['row_count'] = 1  # Add row_count column
+        refined_file_path = os.path.join(refined_directory, os.path.basename(file_path))
+        df.to_csv(refined_file_path, index=False, quoting=csv.QUOTE_NONNUMERIC)
+        print(f"Processed and moved file to refined: {refined_file_path}")
+    except Exception as e:
+        print(f"Failed to process CSV file {file_path}: {e}")
+
+def convert_csv_to_parquet(refined_directory):
+    try:
+        for filename in os.listdir(refined_directory):
+            if filename.endswith('.csv'):
+                csv_file_path = os.path.join(refined_directory, filename)
+                df = pd.read_csv(csv_file_path)
+                parquet_file_path = csv_file_path.replace('.csv', '.parquet')
+                df.to_parquet(parquet_file_path, index=False)
+                print(f"Converted CSV to Parquet: {parquet_file_path}")
+    except Exception as e:
+        print(f"Failed to convert CSV to Parquet: {e}")
+
+def remove_double_quotes_from_csvs(raw_directory, refined_directory, archive_directory):
+    try:
+        os.makedirs(refined_directory, exist_ok=True)
+        os.makedirs(archive_directory, exist_ok=True)
+
+        files_processed = 0
+        for filename in os.listdir(raw_directory):
+            raw_file_path = os.path.join(raw_directory, filename)
+
+            if filename.endswith('.csv'):
+                process_csv(raw_file_path, refined_directory)
+                files_processed += 1
+            elif filename.endswith('.xlsx'):
+                process_xlsx(raw_file_path, refined_directory)
+                files_processed += 1
+
+        if files_processed > 0:
+            timestamp = get_timestamp()
+            archive_files(refined_directory, archive_directory, timestamp)
+
+        convert_csv_to_parquet(refined_directory)
+
+        for filename in os.listdir(raw_directory):
+            file_path = os.path.join(raw_directory, filename)
+            os.remove(file_path)
+            print(f"Deleted raw file: {file_path}")
+
+        if files_processed > 0:
+            print(f"Successfully processed {files_processed} files.")
+        else:
+            print("No CSV or XLSX files found to process.")
+    except Exception as e:
+        print(f"An error occurred: {e}")
+
+# Example usage with sample paths
+raw_directory_path = '/path/to/sample/raw'
+refined_directory_path = '/path/to/sample/refined'
+archive_directory_path = '/path/to/sample/archive'
+remove_double_quotes_from_csvs(raw_directory_path, refined_directory_path, archive_directory_path)

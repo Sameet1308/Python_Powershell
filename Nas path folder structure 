@@ -52,7 +52,17 @@ def convert_csv_to_parquet(refined_directory):
     except Exception as e:
         print(f"Failed to convert CSV to Parquet: {e}")
 
-def remove_double_quotes_from_csvs(raw_directory, refined_directory, archive_directory):
+def generate_trigger_file(trigger_file_directory):
+    try:
+        os.makedirs(trigger_file_directory, exist_ok=True)
+        trigger_file_path = os.path.join(trigger_file_directory, "trigger_file.txt")
+        with open(trigger_file_path, "w") as trigger_file:
+            trigger_file.write("Processing complete.\n")
+        print(f"Generated trigger file: {trigger_file_path}")
+    except Exception as e:
+        print(f"Failed to generate trigger file: {e}")
+
+def remove_double_quotes_from_csvs(raw_directory, refined_directory, archive_directory, trigger_file_directory):
     try:
         os.makedirs(refined_directory, exist_ok=True)
         os.makedirs(archive_directory, exist_ok=True)
@@ -81,6 +91,7 @@ def remove_double_quotes_from_csvs(raw_directory, refined_directory, archive_dir
 
         if files_processed > 0:
             print(f"Successfully processed {files_processed} files.")
+            generate_trigger_file(trigger_file_directory)
         else:
             print("No CSV or XLSX files found to process.")
     except Exception as e:
@@ -90,4 +101,5 @@ def remove_double_quotes_from_csvs(raw_directory, refined_directory, archive_dir
 raw_directory_path = '/path/to/sample/raw'
 refined_directory_path = '/path/to/sample/refined'
 archive_directory_path = '/path/to/sample/archive'
-remove_double_quotes_from_csvs(raw_directory_path, refined_directory_path, archive_directory_path)
+trigger_file_directory_path = '/path/to/trigger/file/location'
+remove_double_quotes_from_csvs(raw_directory_path, refined_directory_path, archive_directory_path, trigger_file_directory_path)

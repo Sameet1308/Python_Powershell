@@ -49,6 +49,8 @@ def convert_csv_to_parquet(refined_directory):
                 parquet_file_path = csv_file_path.replace('.csv', '.parquet')
                 df.to_parquet(parquet_file_path, index=False)
                 print(f"Converted CSV to Parquet: {parquet_file_path}")
+                os.remove(csv_file_path)
+                print(f"Removed CSV file: {csv_file_path}")
     except Exception as e:
         print(f"Failed to convert CSV to Parquet: {e}")
 

@@ -5,8 +5,21 @@ from docx import Document
 from docx.shared import Inches
 
 # Load the CSV data
-file_path = 'user_application_data.csv'
+file_path = '/mnt/data/file-ER4nEFaBxaArshBADXbBuKeG'
 df = pd.read_csv(file_path)
+
+# Inspect the first few rows of the dataframe
+print(df.head())
+
+# Ensure the columns are correctly interpreted
+df.columns = df.columns.str.strip()  # Strip any leading/trailing whitespace from column names
+
+# Convert numeric columns to appropriate types and handle errors
+df['#ofhits'] = pd.to_numeric(df['#ofhits'], errors='coerce')
+df['avg_time_spent'] = pd.to_numeric(df['avg_time_spent'], errors='coerce')
+
+# Drop rows with NaN values in critical columns
+df.dropna(subset=['#ofhits', 'avg_time_spent'], inplace=True)
 
 # Filter data for relevant years
 df = df[df['year'].isin([2023, 2024])]
@@ -29,7 +42,7 @@ user_apps = df.groupby('user')['app_name'].apply(set).to_dict()
 
 # Function to find the optimal set of applications to convert to reduce 800 licenses
 def find_optimal_apps(user_apps, target_licenses):
-    app_list = df['app_name'].unique()
+    app_list = list(set(a for apps in user_apps.values() for a in apps))
     best_combination = []
     max_users_covered = 0
     
@@ -50,6 +63,11 @@ def find_optimal_apps(user_apps, target_licenses):
 # Find the best combination to cover at least 800 unique users
 target_licenses = 800
 top_combination, users_covered = find_optimal_apps(user_apps, target_licenses)
+
+# Export the optimal combination to a CSV file
+optimal_combination_df = pd.DataFrame(top_combination, columns=['app_name'])
+optimal_combination_df['distinct_users_covered'] = users_covered
+optimal_combination_df.to_csv('optimal_combination.csv', index=False)
 
 # Generate a Word document summary report
 document = Document()

@@ -1,0 +1,122 @@
+import pandas as pd
+from itertools import combinations
+import matplotlib.pyplot as plt
+from docx import Document
+from docx.shared import Inches
+
+# Load the CSV data
+file_path = 'user_application_data.csv'
+df = pd.read_csv(file_path)
+
+# Filter data for relevant years
+df = df[df['year'].isin([2023, 2024])]
+
+# Calculate distinct user counts for each application
+app_user_counts = df.groupby('app_name')['user'].nunique().reset_index()
+app_user_counts.columns = ['app_name', 'distinct_user_count']
+
+# Calculate total number of hits and average time spent per application
+app_metrics = df.groupby('app_name').agg({
+    '#ofhits': 'sum',
+    'avg_time_spent': 'mean'
+}).reset_index()
+
+# Merge distinct user counts with app metrics
+app_metrics = app_metrics.merge(app_user_counts, on='app_name')
+
+# Create a dictionary to track applications accessed by each user
+user_apps = df.groupby('user')['app_name'].apply(set).to_dict()
+
+# Function to find the optimal set of applications to convert to reduce 800 licenses
+def find_optimal_apps(user_apps, target_licenses):
+    app_list = df['app_name'].unique()
+    best_combination = []
+    max_users_covered = 0
+    
+    # Iterate through combinations of increasing sizes
+    for r in range(1, len(app_list) + 1):
+        for combo in combinations(app_list, r):
+            users_covered = set()
+            for app in combo:
+                users_covered.update(user for user, apps in user_apps.items() if app in apps)
+            if len(users_covered) > max_users_covered:
+                max_users_covered = len(users_covered)
+                best_combination = combo
+            if max_users_covered >= target_licenses:
+                return best_combination, max_users_covered
+    
+    return best_combination, max_users_covered
+
+# Find the best combination to cover at least 800 unique users
+target_licenses = 800
+top_combination, users_covered = find_optimal_apps(user_apps, target_licenses)
+
+# Generate a Word document summary report
+document = Document()
+
+document.add_heading('Summary Report', 0)
+
+document.add_heading('Application Metrics', level=1)
+document.add_paragraph('This section provides metrics for each application including distinct user counts, total number of hits, and average time spent per application.')
+
+document.add_paragraph(app_metrics.to_string(index=False))
+
+document.add_heading('Recommendations', level=1)
+document.add_paragraph('Based on the analysis, the following applications are recommended for conversion to MicroStrategy (MSTR) to maximize the reduction of QlikView licenses.')
+
+document.add_heading('Top Applications to Convert', level=2)
+document.add_paragraph(f'The optimal set of applications to convert, covering approximately {users_covered} unique users, is as follows:')
+for app in top_combination:
+    app_info = app_metrics[app_metrics['app_name'] == app].iloc[0]
+    document.add_paragraph(f"- {app} (Distinct Users: {app_info['distinct_user_count']}, Hits: {app_info['#ofhits']}, Avg Time: {app_info['avg_time_spent']} minutes)")
+
+document.add_heading('Plots', level=1)
+document.add_paragraph('The following plots provide visual representations of the application metrics.')
+
+# Plot distinct user counts
+plt.figure(figsize=(10, 6))
+plt.bar(app_metrics['app_name'], app_metrics['distinct_user_count'], color='blue')
+plt.xlabel('Application Name')
+plt.ylabel('Distinct User Count')
+plt.title('Distinct User Count per Application')
+plt.xticks(rotation=90)
+plt.tight_layout()
+plt.savefig('distinct_user_counts.png')
+document.add_picture('distinct_user_counts.png', width=Inches(6))
+plt.show()
+
+# Plot number of hits
+plt.figure(figsize=(10, 6))
+plt.bar(app_metrics['app_name'], app_metrics['#ofhits'], color='green')
+plt.xlabel('Application Name')
+plt.ylabel('Total Number of Hits')
+plt.title('Total Number of Hits per Application')
+plt.xticks(rotation=90)
+plt.tight_layout()
+plt.savefig('number_of_hits.png')
+document.add_picture('number_of_hits.png', width=Inches(6))
+plt.show()
+
+# Plot average time spent
+plt.figure(figsize=(10, 6))
+plt.bar(app_metrics['app_name'], app_metrics['avg_time_spent'], color='red')
+plt.xlabel('Application Name')
+plt.ylabel('Average Time Spent (minutes)')
+plt.title('Average Time Spent per Application')
+plt.xticks(rotation=90)
+plt.tight_layout()
+plt.savefig('avg_time_spent.png')
+document.add_picture('avg_time_spent.png', width=Inches(6))
+plt.show()
+
+document.save('summary_report.docx')
+
+print("Reports and plots have been generated and saved.")
+
+# Display some of the results for verification
+print("Application Metrics (Distinct User Counts, Total Hits, Average Time Spent):")
+print(app_metrics.head())
+
+print("\nOptimal Combination and Users Covered:")
+print(f"Combination: {top_combination}")
+print(f"Users Covered: {users_covered}")

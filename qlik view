@@ -5,10 +5,11 @@ from docx import Document
 from docx.shared import Inches
 
 # Load the CSV data
-file_path = '/mnt/data/file-ER4nEFaBxaArshBADXbBuKeG'
+file_path = '/mnt/data/file-Tpf33DoXP27G40TvClzJMFih'
 df = pd.read_csv(file_path)
 
 # Inspect the first few rows of the dataframe
+print("Initial DataFrame:")
 print(df.head())
 
 # Ensure the columns are correctly interpreted
@@ -21,12 +22,20 @@ df['avg_time_spent'] = pd.to_numeric(df['avg_time_spent'], errors='coerce')
 # Drop rows with NaN values in critical columns
 df.dropna(subset=['#ofhits', 'avg_time_spent'], inplace=True)
 
+# Inspect the dataframe after cleaning
+print("DataFrame after cleaning:")
+print(df.head())
+
 # Filter data for relevant years
 df = df[df['year'].isin([2023, 2024])]
 
 # Calculate distinct user counts for each application
 app_user_counts = df.groupby('app_name')['user'].nunique().reset_index()
 app_user_counts.columns = ['app_name', 'distinct_user_count']
+
+# Inspect the distinct user counts
+print("Distinct User Counts per Application:")
+print(app_user_counts.head())
 
 # Calculate total number of hits and average time spent per application
 app_metrics = df.groupby('app_name').agg({
@@ -37,8 +46,16 @@ app_metrics = df.groupby('app_name').agg({
 # Merge distinct user counts with app metrics
 app_metrics = app_metrics.merge(app_user_counts, on='app_name')
 
+# Inspect the application metrics
+print("Application Metrics:")
+print(app_metrics.head())
+
 # Create a dictionary to track applications accessed by each user
 user_apps = df.groupby('user')['app_name'].apply(set).to_dict()
+
+# Inspect the user applications dictionary
+print("User Applications Dictionary:")
+print(list(user_apps.items())[:5])  # Print the first 5 items for inspection
 
 # Function to find the optimal set of applications to convert to reduce 800 licenses
 def find_optimal_apps(user_apps, target_licenses):
@@ -63,6 +80,12 @@ def find_optimal_apps(user_apps, target_licenses):
 # Find the best combination to cover at least 800 unique users
 target_licenses = 800
 top_combination, users_covered = find_optimal_apps(user_apps, target_licenses)
+
+# Inspect the optimal combination and users covered
+print("Optimal Combination:")
+print(top_combination)
+print("Users Covered:")
+print(users_covered)
 
 # Export the optimal combination to a CSV file
 optimal_combination_df = pd.DataFrame(top_combination, columns=['app_name'])

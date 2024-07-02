@@ -15,27 +15,17 @@ print(df.head())
 # Ensure the columns are correctly interpreted
 df.columns = df.columns.str.strip()  # Strip any leading/trailing whitespace from column names
 
-# Inspect data types
-print("Data Types:")
-print(df.dtypes)
-
 # Convert numeric columns to appropriate types and handle errors
-# Print unique values to understand the data better
-print("Unique values in #ofhits before conversion:")
-print(df['#ofhits'].unique())
-print("Unique values in avg_time_spent before conversion:")
-print(df['avg_time_spent'].unique())
-
-# Convert to numeric
 df['#ofhits'] = pd.to_numeric(df['#ofhits'], errors='coerce')
 df['avg_time_spent'] = pd.to_numeric(df['avg_time_spent'].str.replace(':', ''), errors='coerce')
 
 # Drop rows with NaN values in critical columns
 df.dropna(subset=['#ofhits', 'avg_time_spent'], inplace=True)
 
-# Inspect the dataframe after cleaning
-print("DataFrame after cleaning:")
-print(df.head())
+# Export cleaned DataFrame to CSV
+cleaned_file_path = 'cleaned_data.csv'
+df.to_csv(cleaned_file_path, index=False)
+print(f"Cleaned DataFrame exported to {cleaned_file_path}")
 
 # Filter data for relevant years
 df = df[df['year'].isin([2023, 2024])]
@@ -43,10 +33,6 @@ df = df[df['year'].isin([2023, 2024])]
 # Calculate distinct user counts for each application
 app_user_counts = df.groupby('app_name')['user'].nunique().reset_index()
 app_user_counts.columns = ['app_name', 'distinct_user_count']
-
-# Inspect the distinct user counts
-print("Distinct User Counts per Application:")
-print(app_user_counts.head())
 
 # Calculate total number of hits and average time spent per application
 app_metrics = df.groupby('app_name').agg({
@@ -57,40 +43,32 @@ app_metrics = df.groupby('app_name').agg({
 # Merge distinct user counts with app metrics
 app_metrics = app_metrics.merge(app_user_counts, on='app_name')
 
-# Inspect the application metrics
-print("Application Metrics:")
-print(app_metrics.head())
-
 # Create a dictionary to track applications accessed by each user
 user_apps = df.groupby('user')['app_name'].apply(set).to_dict()
-
-# Inspect the user applications dictionary
-print("User Applications Dictionary:")
-print(list(user_apps.items())[:5])  # Print the first 5 items for inspection
 
 # Function to find the optimal set of applications to convert to reduce 800 licenses
 def find_optimal_apps(user_apps, target_licenses):
     app_list = list(set(a for apps in user_apps.values() for a in apps))
     best_combination = []
     max_users_covered = 0
+    users_covered_set = set()
     
     # Iterate through combinations of increasing sizes
     for r in range(1, len(app_list) + 1):
         for combo in combinations(app_list, r):
-            users_covered = set()
-            for app in combo:
-                users_covered.update(user for user, apps in user_apps.items() if app in apps)
+            users_covered = set(user for user, apps in user_apps.items() if apps.issubset(combo))
             if len(users_covered) > max_users_covered:
                 max_users_covered = len(users_covered)
                 best_combination = combo
+                users_covered_set = users_covered
             if max_users_covered >= target_licenses:
-                return best_combination, max_users_covered
+                return best_combination, max_users_covered, users_covered_set
     
-    return best_combination, max_users_covered
+    return best_combination, max_users_covered, users_covered_set
 
 # Find the best combination to cover at least 800 unique users
 target_licenses = 800
-top_combination, users_covered = find_optimal_apps(user_apps, target_licenses)
+top_combination, users_covered, users_covered_set = find_optimal_apps(user_apps, target_licenses)
 
 # Inspect the optimal combination and users covered
 print("Optimal Combination:")
@@ -102,6 +80,13 @@ print(users_covered)
 optimal_combination_df = pd.DataFrame(top_combination, columns=['app_name'])
 optimal_combination_df['distinct_users_covered'] = users_covered
 optimal_combination_df.to_csv('optimal_combination.csv', index=False)
+print("Optimal combination exported to 'optimal_combination.csv'")
+
+# List down the users covered
+users_covered_list = list(users_covered_set)
+users_covered_df = pd.DataFrame(users_covered_list, columns=['user'])
+users_covered_df.to_csv('users_covered.csv', index=False)
+print("Users covered exported to 'users_covered.csv'")
 
 # Generate a Word document summary report
 document = Document()

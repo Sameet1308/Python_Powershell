@@ -1,157 +1,48 @@
 import pandas as pd
-import numpy as np
 import random
 from itertools import combinations
-import matplotlib.pyplot as plt
-from docx import Document
-from docx.shared import Inches
-import time
 
 # Load the CSV data
-file_path = 'cleaned_data.csv'
+file_path = 'your_file_path.csv'  # Replace with your actual file path
 df = pd.read_csv(file_path)
 
-# Filter data for relevant years
-df = df[df['year'].isin([2023, 2024])]
-
-# Create a dictionary to track applications accessed by each user
+# Group applications by user
 user_apps = df.groupby('user')['app_name'].apply(set).to_dict()
 
-# Genetic algorithm to find optimal set of applications
-def genetic_algorithm(user_apps, target_licenses, pop_size=100, generations=500, mutation_rate=0.01):
-    app_list = list(set(a for apps in user_apps.values() for a in apps))
-    app_count = len(app_list)
+# List all users
+users = list(user_apps.keys())
+
+# Function to find the optimal combination of users with the least number of distinct applications
+def find_optimal_combination(user_apps, target_user_count, sample_size=1000):
+    best_combination = None
+    minimal_apps_count = float('inf')
     
-    def fitness(combo):
-        users_covered = set(user for user, apps in user_apps.items() if apps.issubset(combo))
-        return len(users_covered)
+    for _ in range(sample_size):
+        # Randomly sample a combination of target_user_count users
+        sampled_users = random.sample(users, target_user_count)
+        
+        # Calculate the combined set of applications for this sample
+        combined_apps = set()
+        for user in sampled_users:
+            combined_apps.update(user_apps[user])
+        
+        # Count the number of distinct applications
+        num_distinct_apps = len(combined_apps)
+        
+        # Track the best combination
+        if num_distinct_apps < minimal_apps_count:
+            minimal_apps_count = num_distinct_apps
+            best_combination = (sampled_users, combined_apps)
     
-    def create_individual():
-        return [random.randint(0, 1) for _ in range(app_count)]
-    
-    def crossover(parent1, parent2):
-        crossover_point = random.randint(0, app_count - 1)
-        return parent1[:crossover_point] + parent2[crossover_point:]
-    
-    def mutate(individual):
-        return [gene if random.random() > mutation_rate else 1 - gene for gene in individual]
-    
-    def select(population, fitnesses):
-        total_fitness = sum(fitnesses)
-        probabilities = [f / total_fitness for f in fitnesses]
-        return population[np.random.choice(len(population), p=probabilities)]
-    
-    population = [create_individual() for _ in range(pop_size)]
-    
-    for generation in range(generations):
-        fitnesses = [fitness([app_list[i] for i, gene in enumerate(ind) if gene]) for ind in population]
-        new_population = []
-        for _ in range(pop_size // 2):
-            parent1 = select(population, fitnesses)
-            parent2 = select(population, fitnesses)
-            offspring1 = mutate(crossover(parent1, parent2))
-            offspring2 = mutate(crossover(parent2, parent1))
-            new_population.extend([offspring1, offspring2])
-        population = new_population
-    
-    best_individual = max(population, key=lambda ind: fitness([app_list[i] for i, gene in enumerate(ind) if gene]))
-    best_combo = [app_list[i] for i, gene in enumerate(best_individual) if gene]
-    best_fitness = fitness(best_combo)
-    
-    return best_combo, best_fitness
+    return best_combination
 
-# Find the best combination using genetic algorithm
-start_time = time.time()
-target_licenses = 800
-top_combination, users_covered = genetic_algorithm(user_apps, target_licenses)
-end_time = time.time()
+# Parameters
+target_user_count = 3  # Set the target number of users for the combination
+sample_size = 10000  # Number of random samples to evaluate
 
-# Inspect the optimal combination and users covered
-print("Optimal Combination:")
-print(top_combination)
-print("Users Covered:")
-print(users_covered)
-print(f"Execution Time: {end_time - start_time} seconds")
+# Find the optimal combination
+optimal_combination = find_optimal_combination(user_apps, target_user_count, sample_size)
 
-# Export the optimal combination to a CSV file
-optimal_combination_df = pd.DataFrame(top_combination, columns=['app_name'])
-optimal_combination_df['distinct_users_covered'] = users_covered
-optimal_combination_df.to_csv('optimal_combination.csv', index=False)
-print("Optimal combination exported to 'optimal_combination.csv'")
-
-# List down the users covered
-users_covered_set = set(user for user, apps in user_apps.items() if apps.issubset(set(top_combination)))
-users_covered_list = list(users_covered_set)
-users_covered_df = pd.DataFrame(users_covered_list, columns=['user'])
-users_covered_df.to_csv('users_covered.csv', index=False)
-print("Users covered exported to 'users_covered.csv'")
-
-# Generate a Word document summary report
-document = Document()
-
-document.add_heading('Summary Report', 0)
-
-document.add_heading('Application Metrics', level=1)
-document.add_paragraph('This section provides metrics for each application including distinct user counts, total number of hits, and average time spent per application.')
-
-document.add_paragraph(app_metrics.to_string(index=False))
-
-document.add_heading('Recommendations', level=1)
-document.add_paragraph('Based on the analysis, the following applications are recommended for conversion to MicroStrategy (MSTR) to maximize the reduction of QlikView licenses.')
-
-document.add_heading('Top Applications to Convert', level=2)
-document.add_paragraph(f'The optimal set of applications to convert, covering approximately {users_covered} unique users, is as follows:')
-for app in top_combination:
-    app_info = app_metrics[app_metrics['app_name'] == app].iloc[0]
-    document.add_paragraph(f"- {app} (Distinct Users: {app_info['distinct_user_count']}, Hits: {app_info['#ofhits']}, Avg Time: {app_info['avg_time_spent']} minutes)")
-
-document.add_heading('Plots', level=1)
-document.add_paragraph('The following plots provide visual representations of the application metrics.')
-
-# Plot distinct user counts
-plt.figure(figsize=(10, 6))
-plt.bar(app_metrics['app_name'], app_metrics['distinct_user_count'], color='blue')
-plt.xlabel('Application Name')
-plt.ylabel('Distinct User Count')
-plt.title('Distinct User Count per Application')
-plt.xticks(rotation=90)
-plt.tight_layout()
-plt.savefig('distinct_user_counts.png')
-document.add_picture('distinct_user_counts.png', width=Inches(6))
-plt.show()
-
-# Plot number of hits
-plt.figure(figsize=(10, 6))
-plt.bar(app_metrics['app_name'], app_metrics['#ofhits'], color='green')
-plt.xlabel('Application Name')
-plt.ylabel('Total Number of Hits')
-plt.title('Total Number of Hits per Application')
-plt.xticks(rotation=90)
-plt.tight_layout()
-plt.savefig('number_of_hits.png')
-document.add_picture('number_of_hits.png', width=Inches(6))
-plt.show()
-
-# Plot average time spent
-plt.figure(figsize=(10, 6))
-plt.bar(app_metrics['app_name'], app_metrics['avg_time_spent'], color='red')
-plt.xlabel('Application Name')
-plt.ylabel('Average Time Spent (minutes)')
-plt.title('Average Time Spent per Application')
-plt.xticks(rotation=90)
-plt.tight_layout()
-plt.savefig('avg_time_spent.png')
-document.add_picture('avg_time_spent.png', width=Inches(6))
-plt.show()
-
-document.save('summary_report.docx')
-
-print("Reports and plots have been generated and saved.")
-
-# Display some of the results for verification
-print("Application Metrics (Distinct User Counts, Total Hits, Average Time Spent):")
-print(app_metrics.head())
-
-print("\nOptimal Combination and Users Covered:")
-print(f"Combination: {top_combination}")
-print(f"Users Covered: {users_covered}")
+# Print the optimal combination and their distinct application counts
+sampled_users, apps = optimal_combination
+print(f"Optimal combination {sampled_users} accesses {len(apps)} distinct applications: {apps}")

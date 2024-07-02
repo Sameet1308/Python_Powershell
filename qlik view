@@ -1,80 +1,77 @@
 import pandas as pd
+import numpy as np
+import random
 from itertools import combinations
 import matplotlib.pyplot as plt
 from docx import Document
 from docx.shared import Inches
+import time
 
 # Load the CSV data
-file_path = '/mnt/data/file-oXyojj3gj31bZ2dsiqKhZjPP'
+file_path = 'cleaned_data.csv'
 df = pd.read_csv(file_path)
-
-# Inspect the first few rows of the dataframe
-print("Initial DataFrame:")
-print(df.head())
-
-# Ensure the columns are correctly interpreted
-df.columns = df.columns.str.strip()  # Strip any leading/trailing whitespace from column names
-
-# Convert numeric columns to appropriate types and handle errors
-df['#ofhits'] = pd.to_numeric(df['#ofhits'], errors='coerce')
-df['avg_time_spent'] = pd.to_numeric(df['avg_time_spent'].str.replace(':', ''), errors='coerce')
-
-# Drop rows with NaN values in critical columns
-df.dropna(subset=['#ofhits', 'avg_time_spent'], inplace=True)
-
-# Export cleaned DataFrame to CSV
-cleaned_file_path = 'cleaned_data.csv'
-df.to_csv(cleaned_file_path, index=False)
-print(f"Cleaned DataFrame exported to {cleaned_file_path}")
 
 # Filter data for relevant years
 df = df[df['year'].isin([2023, 2024])]
 
-# Calculate distinct user counts for each application
-app_user_counts = df.groupby('app_name')['user'].nunique().reset_index()
-app_user_counts.columns = ['app_name', 'distinct_user_count']
-
-# Calculate total number of hits and average time spent per application
-app_metrics = df.groupby('app_name').agg({
-    '#ofhits': 'sum',
-    'avg_time_spent': 'mean'
-}).reset_index()
-
-# Merge distinct user counts with app metrics
-app_metrics = app_metrics.merge(app_user_counts, on='app_name')
-
 # Create a dictionary to track applications accessed by each user
 user_apps = df.groupby('user')['app_name'].apply(set).to_dict()
 
-# Function to find the optimal set of applications to convert to reduce licenses
-def find_optimal_apps(user_apps, target_licenses):
+# Genetic algorithm to find optimal set of applications
+def genetic_algorithm(user_apps, target_licenses, pop_size=100, generations=500, mutation_rate=0.01):
     app_list = list(set(a for apps in user_apps.values() for a in apps))
-    best_combination = []
-    closest_users_covered = 0
-    users_covered_set = set()
+    app_count = len(app_list)
     
-    # Iterate through combinations of increasing sizes
-    for r in range(1, len(app_list) + 1):
-        for combo in combinations(app_list, r):
-            users_covered = set(user for user, apps in user_apps.items() if apps.issubset(combo))
-            if len(users_covered) > closest_users_covered:
-                closest_users_covered = len(users_covered)
-                best_combination = combo
-                users_covered_set = users_covered
-            if closest_users_covered >= target_licenses:
-                return best_combination, closest_users_covered, users_covered_set
+    def fitness(combo):
+        users_covered = set(user for user, apps in user_apps.items() if apps.issubset(combo))
+        return len(users_covered)
     
-    return best_combination, closest_users_covered, users_covered_set
+    def create_individual():
+        return [random.randint(0, 1) for _ in range(app_count)]
+    
+    def crossover(parent1, parent2):
+        crossover_point = random.randint(0, app_count - 1)
+        return parent1[:crossover_point] + parent2[crossover_point:]
+    
+    def mutate(individual):
+        return [gene if random.random() > mutation_rate else 1 - gene for gene in individual]
+    
+    def select(population, fitnesses):
+        total_fitness = sum(fitnesses)
+        probabilities = [f / total_fitness for f in fitnesses]
+        return population[np.random.choice(len(population), p=probabilities)]
+    
+    population = [create_individual() for _ in range(pop_size)]
+    
+    for generation in range(generations):
+        fitnesses = [fitness([app_list[i] for i, gene in enumerate(ind) if gene]) for ind in population]
+        new_population = []
+        for _ in range(pop_size // 2):
+            parent1 = select(population, fitnesses)
+            parent2 = select(population, fitnesses)
+            offspring1 = mutate(crossover(parent1, parent2))
+            offspring2 = mutate(crossover(parent2, parent1))
+            new_population.extend([offspring1, offspring2])
+        population = new_population
+    
+    best_individual = max(population, key=lambda ind: fitness([app_list[i] for i, gene in enumerate(ind) if gene]))
+    best_combo = [app_list[i] for i, gene in enumerate(best_individual) if gene]
+    best_fitness = fitness(best_combo)
+    
+    return best_combo, best_fitness
 
-# Find the best combination to cover the nearest to 800 unique users
+# Find the best combination using genetic algorithm
+start_time = time.time()
 target_licenses = 800
-top_combination, users_covered, users_covered_set = find_optimal_apps(user_apps, target_licenses)
+top_combination, users_covered = genetic_algorithm(user_apps, target_licenses)
+end_time = time.time()
 
 # Inspect the optimal combination and users covered
 print("Optimal Combination:")
 print(top_combination)
 print("Users Covered:")
 print(users_covered)
+print(f"Execution Time: {end_time - start_time} seconds")
 
 # Export the optimal combination to a CSV file
 optimal_combination_df = pd.DataFrame(top_combination, columns=['app_name'])
@@ -83,6 +80,7 @@ optimal_combination_df.to_csv('optimal_combination.csv', index=False)
 print("Optimal combination exported to 'optimal_combination.csv'")
 
 # List down the users covered
+users_covered_set = set(user for user, apps in user_apps.items() if apps.issubset(set(top_combination)))
 users_covered_list = list(users_covered_set)
 users_covered_df = pd.DataFrame(users_covered_list, columns=['user'])
 users_covered_df.to_csv('users_covered.csv', index=False)

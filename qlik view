@@ -46,27 +46,27 @@ app_metrics = app_metrics.merge(app_user_counts, on='app_name')
 # Create a dictionary to track applications accessed by each user
 user_apps = df.groupby('user')['app_name'].apply(set).to_dict()
 
-# Function to find the optimal set of applications to convert to reduce 800 licenses
+# Function to find the optimal set of applications to convert to reduce licenses
 def find_optimal_apps(user_apps, target_licenses):
     app_list = list(set(a for apps in user_apps.values() for a in apps))
     best_combination = []
-    max_users_covered = 0
+    closest_users_covered = 0
     users_covered_set = set()
     
     # Iterate through combinations of increasing sizes
     for r in range(1, len(app_list) + 1):
         for combo in combinations(app_list, r):
             users_covered = set(user for user, apps in user_apps.items() if apps.issubset(combo))
-            if len(users_covered) > max_users_covered:
-                max_users_covered = len(users_covered)
+            if len(users_covered) > closest_users_covered:
+                closest_users_covered = len(users_covered)
                 best_combination = combo
                 users_covered_set = users_covered
-            if max_users_covered >= target_licenses:
-                return best_combination, max_users_covered, users_covered_set
+            if closest_users_covered >= target_licenses:
+                return best_combination, closest_users_covered, users_covered_set
     
-    return best_combination, max_users_covered, users_covered_set
+    return best_combination, closest_users_covered, users_covered_set
 
-# Find the best combination to cover at least 800 unique users
+# Find the best combination to cover the nearest to 800 unique users
 target_licenses = 800
 top_combination, users_covered, users_covered_set = find_optimal_apps(user_apps, target_licenses)
 

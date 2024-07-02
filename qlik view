@@ -1,6 +1,9 @@
 import pandas as pd
 import random
-from itertools import combinations
+import itertools
+import matplotlib.pyplot as plt
+from docx import Document
+from docx.shared import Inches
 
 # Load the CSV data
 file_path = 'your_file_path.csv'  # Replace with your actual file path
@@ -43,6 +46,89 @@ sample_size = 10000  # Number of random samples to evaluate
 # Find the optimal combination
 optimal_combination = find_optimal_combination(user_apps, target_user_count, sample_size)
 
-# Print the optimal combination and their distinct application counts
+# Extract the best combination details
 sampled_users, apps = optimal_combination
-print(f"Optimal combination {sampled_users} accesses {len(apps)} distinct applications: {apps}")
+
+# Generate CSVs
+def generate_csvs(sampled_users, apps):
+    # CSV 1: Users and their accessed applications
+    user_applications = [(user, ','.join(user_apps[user])) for user in sampled_users]
+    df_user_apps = pd.DataFrame(user_applications, columns=['User', 'Applications_Accessed'])
+    df_user_apps.to_csv('user_applications.csv', index=False)
+
+    # CSV 2: Applications and the users accessing them
+    app_users = []
+    for app in apps:
+        for user in sampled_users:
+            if app in user_apps[user]:
+                app_users.append((app, user))
+    df_app_users = pd.DataFrame(app_users, columns=['Application', 'User'])
+    df_app_users.to_csv('application_users.csv', index=False)
+
+# Generate a Word document report
+def generate_report(sampled_users, apps, target_user_count, file_name='report.docx'):
+    document = Document()
+    
+    # Title and introduction
+    document.add_heading('Reduction of QlikView Licenses Report', 0)
+    document.add_paragraph(
+        f'This report outlines the approach used to identify the optimal combination of users to target for reducing {target_user_count} QlikView licenses. The goal was to minimize the number of distinct applications that need to be converted to MicroStrategy.'
+    )
+    
+    # Methodology
+    document.add_heading('Methodology', level=1)
+    document.add_paragraph(
+        'The "Heuristic Sampling and Evaluation Method" was used to identify the optimal set of users. This method involves the following steps:'
+    )
+    document.add_paragraph(
+        '1. **Random Sampling**: Randomly sample a large number of combinations of users (defined by the target number of users).'
+    )
+    document.add_paragraph(
+        '2. **Application Union Calculation**: For each sampled combination, calculate the union of the applications accessed by the users in that combination.'
+    )
+    document.add_paragraph(
+        '3. **Distinct Application Counting**: Count the number of distinct applications for each combination.'
+    )
+    document.add_paragraph(
+        '4. **Optimization**: Track the combination with the fewest distinct applications. This combination is deemed optimal as it requires the least number of applications to be converted.'
+    )
+    
+    # Results
+    document.add_heading('Results', level=1)
+    document.add_paragraph(f'Optimal combination of {target_user_count} users:')
+    document.add_paragraph(f'Users: {sampled_users}')
+    document.add_paragraph(f'Number of distinct applications: {len(apps)}')
+    document.add_paragraph(f'Applications: {apps}')
+    
+    # Recommendations
+    document.add_heading('Recommendations', level=1)
+    document.add_paragraph(
+        f'To reduce {target_user_count} QlikView licenses, it is recommended to convert the identified {len(apps)} applications to MicroStrategy. This will allow for the targeted users to be fully covered by MicroStrategy, thus eliminating the need for QlikView licenses for these users.'
+    )
+    
+    # Visualization
+    document.add_heading('Visualization', level=1)
+    document.add_paragraph('The following bar chart shows the number of distinct applications accessed by the optimal combination of users sampled.')
+    
+    # Plot the data
+    plt.figure(figsize=(10, 6))
+    plt.bar(['Combination'], [len(apps)], color='blue')
+    plt.xlabel('Combination')
+    plt.ylabel('Number of Distinct Applications')
+    plt.title('Distinct Applications for Optimal User Combination')
+    plt.savefig('applications_chart.png')
+    plt.close()
+    
+    # Add the plot to the document
+    document.add_picture('applications_chart.png', width=Inches(6))
+    
+    # Save the document
+    document.save(file_name)
+
+# Generate the CSV files
+generate_csvs(sampled_users, apps)
+print("CSV files generated successfully: 'user_applications.csv' and 'application_users.csv'.")
+
+# Generate the report
+generate_report(sampled_users, apps, target_user_count)
+print("Report generated successfully and saved as 'report.docx'.")
